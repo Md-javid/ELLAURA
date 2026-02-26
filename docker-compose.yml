@@ -1,0 +1,28 @@
+# ═══════════════════════════════════════════════════════════
+# Ellaura — Docker Compose
+# Usage:
+#   docker-compose up --build        (foreground)
+#   docker-compose up -d --build     (background)
+#   docker-compose down              (stop)
+# ═══════════════════════════════════════════════════════════
+
+services:
+  ellaura:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+        VITE_ADMIN_PIN: ${VITE_ADMIN_PIN:-230703}
+        VITE_APP_URL: ${VITE_APP_URL:-http://localhost:8080}
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost/" ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

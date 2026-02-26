@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+.env
+.env.local
+.env.production
+.git
+.gitignore
+.vscode
+.idea
+*.md
+!README.md
+LICENSE
+Thumbs.db
+.DS_Store
