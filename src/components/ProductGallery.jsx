@@ -274,12 +274,16 @@ export default function ProductGallery() {
   const [allProducts, setAllProducts] = useState([])
   const [displayed, setDisplayed] = useState([])
 
-  // Fetch from Supabase on mount; fall back to localStorage
+  // Fetch from Supabase on mount; fall back to local/static products
   useEffect(() => {
     getProducts().then(dbProducts => {
       const products = (dbProducts && dbProducts.length > 0)
         ? dbProducts
         : getLiveProducts()
+      setAllProducts(products)
+      setDisplayed(products)
+    }).catch(() => {
+      const products = getLiveProducts()
       setAllProducts(products)
       setDisplayed(products)
     })

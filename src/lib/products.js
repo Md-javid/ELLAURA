@@ -162,17 +162,20 @@ export const PRODUCTS = [
 export const getProductById = (id) => PRODUCTS.find(p => p.id === id) || null
 
 // Returns admin-managed products from localStorage if available,
-// otherwise returns empty (clean start — products added via admin only).
+// otherwise falls back to the built-in launch collection (PRODUCTS).
 // Used by ProductGallery, SearchModal etc. to reflect admin changes.
 export const getLiveProducts = () => {
   try {
     const raw = localStorage.getItem('ellaura_admin_products')
     if (raw) {
       const saved = JSON.parse(raw)
-      return saved.filter(p => p.active !== false) // hide products toggled off
+      const active = saved.filter(p => p.active !== false) // hide products toggled off
+      // If admin has saved products, use those; otherwise fall back to built-in collection
+      return active.length > 0 ? active : PRODUCTS
     }
   } catch {}
-  return []
+  // No admin data yet — show the built-in launch collection
+  return PRODUCTS
 }
 
 // Returns products recently added by admin (badge === 'New' or added within last 7 days)
