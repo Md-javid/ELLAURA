@@ -17,7 +17,7 @@ export default function Toast({ message, type = 'info' }) {
   const color = COLORS[type] || COLORS.info
 
   return (
-    <div className="fixed inset-0 z-[70] pointer-events-none flex items-center justify-center px-4">
+    <div className="fixed top-6 left-0 right-0 z-[70] pointer-events-none flex justify-center px-4">
       <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl border bg-gradient-to-r shadow-2xl backdrop-blur-xl animate-toastPop ${color}`}>
         <Icon className="w-5 h-5 flex-shrink-0" />
         <p className="text-[14px] font-semibold text-white/90 leading-snug">{message}</p>

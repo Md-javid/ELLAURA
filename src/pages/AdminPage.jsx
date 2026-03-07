@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, Navigate } from 'react-router-dom'
 import {
   ShieldCheck, Lock, ArrowLeft, Plus, Edit2, Trash2,
   Save, X, Package, Eye, EyeOff, UploadCloud,
@@ -16,16 +16,19 @@ const ADMIN_PRODUCTS_KEY = 'ellaura_admin_products'
 const ADMIN_ACCOUNTS_KEY = 'ellaura_admin_accounts'
 const SESSION_TTL = 60 * 60 * 1000 // 1 hour
 
-// Default admin credentials
-const DEFAULT_ADMIN = { email: 'admin@ellaura.in', password: 'Ellaura@2026' }
+// Default admin credentials (override via VITE_ADMIN_EMAIL / VITE_ADMIN_PASSWORD in .env)
+const DEFAULT_ADMIN = {
+  email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@ellaura.in',
+  password: import.meta.env.VITE_ADMIN_PASSWORD || 'Ellaura@2026',
+}
 
 import { PRODUCTS as DEFAULT_PRODUCTS } from '../lib/products'
 
 const loadAdminProducts = () => {
   try {
     const raw = localStorage.getItem(ADMIN_PRODUCTS_KEY)
-    return raw ? JSON.parse(raw) : [...DEFAULT_PRODUCTS]
-  } catch { return [...DEFAULT_PRODUCTS] }
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
 }
 
 const saveAdminProducts = (prods) =>
@@ -39,12 +42,15 @@ const loadAdminAccounts = () => {
   } catch { return [DEFAULT_ADMIN] }
 }
 
+const saveAdminAccounts = (accs) =>
+  localStorage.setItem(ADMIN_ACCOUNTS_KEY, JSON.stringify(accs))
+
 const EMPTY_PRODUCT = {
   id: '', name: '', price: '', priceDisplay: '',
   category: 'midi', vibe: ['cocktail'],
   tag: '', tagColor: 'from-[#b76e79] to-[#8b4f5a]',
   badge: 'New', rating: 4.9, reviews: 0,
-  img: '', imgAlt: '',
+  img: '', images: [], imgAlt: '',
   description: '', material: '', careInstructions: '',
   sizes: ['S', 'M', 'L'],
   colors: ['Black'], deliveryDays: 48, stock: 5,
@@ -235,11 +241,138 @@ function AdminLogin({ onVerify }) {
   )
 }
 
+// ── Change Credentials Modal ──────────────────────────────────
+function ChangeCredentialsModal({ currentEmail, onClose, onChanged }) {
+  const [email, setEmail] = useState(currentEmail || '')
+  const [currentPass, setCurrentPass] = useState('')
+  const [newPass, setNewPass] = useState('')
+  const [confirmPass, setConfirmPass] = useState('')
+  const [showPass, setShowPass] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  const handleSave = (e) => {
+    e.preventDefault()
+    setError('')
+    if (!email.trim()) return setError('Email is required.')
+    const accounts = loadAdminAccounts()
+    const acc = accounts.find(a => a.email === currentEmail)
+    if (!acc || acc.password !== currentPass) return setError('Current password is incorrect.')
+    if (newPass.length < 8) return setError('New password must be at least 8 characters.')
+    if (newPass !== confirmPass) return setError('Passwords do not match.')
+    const updated = accounts.map(a =>
+      a.email === currentEmail ? { email: email.trim(), password: newPass } : a
+    )
+    saveAdminAccounts(updated)
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now(), email: email.trim() }))
+    setSaved(true)
+    setTimeout(() => { onChanged(email.trim()); onClose() }, 1200)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative glass-dark rounded-[24px] border border-white/10 p-6 max-w-sm w-full shadow-2xl">
+        <div className="flex items-center gap-2 mb-5">
+          <KeyRound className="w-4 h-4 text-[#b76e79]" />
+          <h3 className="font-serif text-base font-bold text-white/90">Change Credentials</h3>
+          <button onClick={onClose} className="ml-auto text-white/30 hover:text-white/60 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {saved ? (
+          <div className="flex flex-col items-center gap-3 py-6">
+            <CheckCircle className="w-8 h-8 text-emerald-400" />
+            <p className="text-[13px] text-emerald-400/80 font-medium">Credentials updated!</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSave} className="space-y-4">
+            <div>
+              <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Admin Email</label>
+              <div className={wrapCls}>
+                <Mail className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} required autoFocus />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Current Password</label>
+              <div className={wrapCls}>
+                <KeyRound className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  placeholder="Current password"
+                  value={currentPass}
+                  onChange={e => setCurrentPass(e.target.value)}
+                  className={inputCls}
+                  required
+                />
+                <button type="button" onClick={() => setShowPass(!showPass)} className="text-white/30 hover:text-white/50 flex-shrink-0">
+                  {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">New Password</label>
+              <div className={wrapCls}>
+                <KeyRound className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  placeholder="Min. 8 characters"
+                  value={newPass}
+                  onChange={e => setNewPass(e.target.value)}
+                  className={inputCls}
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Confirm New Password</label>
+              <div className={wrapCls}>
+                <KeyRound className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
+                <input
+                  type={showPass ? 'text' : 'password'}
+                  placeholder="Repeat new password"
+                  value={confirmPass}
+                  onChange={e => setConfirmPass(e.target.value)}
+                  className={inputCls}
+                  required
+                />
+              </div>
+            </div>
+            {error && (
+              <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2 flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" /> {error}
+              </p>
+            )}
+            <div className="flex gap-3 pt-1">
+              <button type="submit" className="flex-1 btn-liquid rounded-xl py-2.5 text-[13px] font-semibold text-white flex items-center justify-center gap-1.5">
+                <Save className="w-3.5 h-3.5" /> Save
+              </button>
+              <button type="button" onClick={onClose} className="flex-1 glass rounded-xl border border-white/10 py-2.5 text-[13px] text-white/50 hover:text-white/80 transition-all">
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Product Form ──────────────────────────────────────────────
 function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
-  const [form, setForm] = useState({ ...initial })
-  const [preview, setPreview] = useState(initial.img || '')
+  const normalizedInitialImages = [...new Set([initial.img, ...(initial.images || [])].filter(Boolean))]
+  const [form, setForm] = useState({
+    ...initial,
+    img: normalizedInitialImages[0] || '',
+    images: normalizedInitialImages,
+  })
+  const [preview, setPreview] = useState(normalizedInitialImages[0] || '')
   const [imgError, setImgError] = useState(false)
+  const [imgMode, setImgMode] = useState('upload') // 'upload' | 'url'
+  const [uploading, setUploading] = useState(false)
+  const [galleryInput, setGalleryInput] = useState(normalizedInitialImages.slice(1).join('\n'))
+  const fileInputRef = useRef(null)
 
   const set = (k) => (e) => {
     const v = e.target.value
@@ -267,19 +400,84 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
   }
 
   const handleImgChange = (val) => {
-    setForm(f => ({ ...f, img: val }))
+    setForm(f => {
+      const nextImages = [val, ...(f.images || []).filter(img => img && img !== val)]
+      return { ...f, img: val, images: nextImages }
+    })
     setPreview(val)
     setImgError(false)
+  }
+
+  const handleGalleryChange = (raw) => {
+    setGalleryInput(raw)
+    const parsed = raw
+      .split(/[\n,]/)
+      .map(s => s.trim())
+      .filter(Boolean)
+
+    setForm(f => {
+      const merged = [...new Set([f.img, ...parsed].filter(Boolean))]
+      return {
+        ...f,
+        images: merged,
+      }
+    })
+  }
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) return alert('Please select an image file')
+    if (file.size > 5 * 1024 * 1024) return alert('Image must be under 5MB')
+    setUploading(true)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result
+      handleImgChange(dataUrl)
+      setUploading(false)
+    }
+    reader.onerror = () => { setUploading(false); alert('Failed to read file') }
+    reader.readAsDataURL(file)
+  }
+
+  // Convert Google Drive share link to direct image URL
+  const convertDriveLink = (url) => {
+    // Match patterns like: https://drive.google.com/file/d/FILE_ID/view
+    const driveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/)
+    if (driveMatch) {
+      return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`
+    }
+    // Match: https://drive.google.com/open?id=FILE_ID
+    const openMatch = url.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/)
+    if (openMatch) {
+      return `https://drive.google.com/uc?export=view&id=${openMatch[1]}`
+    }
+    return url
+  }
+
+  const handleUrlInput = (val) => {
+    const converted = convertDriveLink(val)
+    handleImgChange(converted)
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!form.name.trim()) return alert('Product name is required')
     if (!form.price) return alert('Price is required')
-    if (!form.img.trim()) return alert('Image URL is required')
+    if (!form.img.trim()) return alert('Product image is required')
+
+    const finalImages = [...new Set([form.img, ...(form.images || [])].filter(Boolean))]
     const finalId = form.id || `EL${String(Date.now()).slice(-4)}`
     const addedAt = form.addedAt || new Date().toISOString()
-    onSave({ ...form, id: finalId, price: Number(form.price), reviewCount: form.reviews, addedAt })
+    onSave({
+      ...form,
+      id: finalId,
+      img: finalImages[0],
+      images: finalImages,
+      price: Number(form.price),
+      reviewCount: form.reviews,
+      addedAt,
+    })
   }
 
   const inputClass = inputCls + ' text-[13px]'
@@ -287,24 +485,99 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Image preview */}
-      <div className="flex gap-4 items-start">
-        <div className="w-24 h-32 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 bg-white/5">
-          {preview && !imgError ? (
-            <img src={preview} alt="" className="w-full h-full object-cover object-top" onError={() => setImgError(true)} />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-white/20">
-              <UploadCloud className="w-6 h-6" />
-              <p className="text-[9px]">No image</p>
-            </div>
-          )}
-        </div>
-        <div className="flex-1">
-          <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Image URL *</label>
-          <div className={wClass}>
-            <input type="url" placeholder="https://..." value={form.img} onChange={e => handleImgChange(e.target.value)} className={inputClass} />
+      {/* Image section */}
+      <div className="space-y-3">
+        {/* Mode toggle */}
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase">Primary Product Image *</label>
+          <div className="ml-auto glass rounded-lg p-0.5 flex gap-0.5">
+            <button
+              type="button"
+              onClick={() => setImgMode('upload')}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all ${imgMode === 'upload' ? 'bg-gradient-to-r from-[#b76e79]/60 to-[#8b4f5a]/60 text-white shadow' : 'text-white/35'}`}
+            >
+              Upload
+            </button>
+            <button
+              type="button"
+              onClick={() => setImgMode('url')}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all ${imgMode === 'url' ? 'bg-gradient-to-r from-[#b76e79]/60 to-[#8b4f5a]/60 text-white shadow' : 'text-white/35'}`}
+            >
+              URL / Drive
+            </button>
           </div>
-          <p className="text-[10px] text-white/20 mt-1">Paste any Unsplash or CDN URL</p>
+        </div>
+
+        <div className="flex gap-4 items-start">
+          {/* Preview */}
+          <div
+            className="w-24 h-32 rounded-xl overflow-hidden border border-white/10 flex-shrink-0 bg-white/5 cursor-pointer hover:border-[#b76e79]/30 transition-all"
+            onClick={() => imgMode === 'upload' && fileInputRef.current?.click()}
+          >
+            {preview && !imgError ? (
+              <img src={preview} alt="" className="w-full h-full object-cover object-top" onError={() => setImgError(true)} />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-white/20">
+                <UploadCloud className={`w-6 h-6 ${uploading ? 'animate-bounce' : ''}`} />
+                <p className="text-[9px]">{uploading ? 'Loading...' : imgMode === 'upload' ? 'Click to upload' : 'No image'}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 space-y-2">
+            {imgMode === 'upload' ? (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full glass rounded-xl border border-dashed border-white/15 hover:border-[#b76e79]/40 px-4 py-5 text-center transition-all group"
+                >
+                  <UploadCloud className={`w-5 h-5 mx-auto mb-1.5 transition-all ${uploading ? 'text-[#b76e79] animate-bounce' : 'text-white/25 group-hover:text-[#b76e79]/60'}`} />
+                  <p className="text-[12px] text-white/40 group-hover:text-white/60">
+                    {uploading ? 'Processing...' : 'Click to upload image'}
+                  </p>
+                  <p className="text-[10px] text-white/15 mt-0.5">JPG, PNG, WebP · Max 5MB</p>
+                </button>
+              </>
+            ) : (
+              <>
+                <div className={wClass}>
+                  <input
+                    type="url"
+                    placeholder="https://... or Google Drive link"
+                    value={form.img?.startsWith('data:') ? '' : form.img}
+                    onChange={e => handleUrlInput(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <p className="text-[10px] text-white/20">Paste any image URL, Unsplash link, or Google Drive share link</p>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Gallery Image URLs (optional)</label>
+          <div className={`${wClass} items-start py-2`}>
+            <textarea
+              value={galleryInput}
+              onChange={e => handleGalleryChange(e.target.value)}
+              rows={3}
+              placeholder="One image URL per line (or comma-separated)"
+              className={`${inputClass} resize-y min-h-[78px]`}
+            />
+          </div>
+          <p className="text-[10px] text-white/20 mt-1">
+            Total images for this product: {(form.images || []).length}
+          </p>
         </div>
       </div>
 
@@ -473,6 +746,7 @@ export default function AdminPage() {
   const [editTarget, setEditTarget] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [showPinClear, setShowPinClear] = useState(false)
+  const [showCredentials, setShowCredentials] = useState(false)
   const [dbSyncing, setDbSyncing] = useState(false)
   const [dbError, setDbError] = useState('')
 
@@ -585,20 +859,9 @@ export default function AdminPage() {
   // ── Auth Gate ─────────────────────────────────────────────
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 pt-20 pb-16">
+      <div className="min-h-screen flex items-center justify-center px-4 pt-24 pb-16">
         <div className="w-full max-w-sm">
-          <Link to="/" className="inline-flex items-center gap-1.5 text-[12px] text-white/30 hover:text-white/60 transition-colors mb-8">
-            <ArrowLeft className="w-3 h-3" /> Back to store
-          </Link>
-          <div className="glass-dark rounded-[28px] border border-white/10 shadow-2xl overflow-hidden">
-            <div className="h-0.5 w-full bg-gradient-to-r from-[#b76e79] to-[#6366f1]" />
-            <div className="p-8">
-              <AdminLogin onVerify={handleAuth} />
-            </div>
-          </div>
-          <p className="text-center text-[10px] text-white/15 mt-5">
-            Access restricted to Ellaura administrators
-          </p>
+          <AdminLogin onVerify={handleAuth} />
         </div>
       </div>
     )
@@ -635,6 +898,9 @@ export default function AdminPage() {
           <div className="flex items-center gap-2">
             <button onClick={resetToDefaults} className="glass rounded-xl border border-white/10 px-3 py-2 text-[11px] text-white/40 hover:text-white/70 flex items-center gap-1.5 transition-all">
               <RefreshCw className="w-3.5 h-3.5" /> Reset
+            </button>
+            <button onClick={() => setShowCredentials(true)} className="glass rounded-xl border border-white/10 px-3 py-2 text-[11px] text-white/40 hover:text-[#b76e79]/80 flex items-center gap-1.5 transition-all">
+              <KeyRound className="w-3.5 h-3.5" /> Credentials
             </button>
             <button onClick={handleLogout} className="glass rounded-xl border border-white/10 px-3 py-2 text-[11px] text-white/40 hover:text-red-400 flex items-center gap-1.5 transition-all">
               <Lock className="w-3.5 h-3.5" /> Lock
@@ -767,6 +1033,15 @@ export default function AdminPage() {
             ))}
           </div>
         </div>
+
+        {/* Change credentials modal */}
+        {showCredentials && (
+          <ChangeCredentialsModal
+            currentEmail={adminEmail}
+            onClose={() => setShowCredentials(false)}
+            onChanged={(newEmail) => setAdminEmail(newEmail)}
+          />
+        )}
 
         {/* Delete confirm */}
         {deleteConfirm && (

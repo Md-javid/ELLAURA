@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Hero from '../components/Hero'
 import ProductGallery from '../components/ProductGallery'
-import { Instagram, Mail, Sparkles, Heart, X, Smartphone, ExternalLink, Zap } from 'lucide-react'
+import { Instagram, Mail, Sparkles, Heart, X, Zap, Scissors, Gem, RotateCcw, Ruler, MoonStar } from 'lucide-react'
 import { getNewArrivals } from '../lib/products'
 
 const WhatsAppIcon = () => (
@@ -52,12 +52,12 @@ function NewArrivalsPopup() {
 
   return (
     <div className="fixed bottom-6 right-6 z-[55] max-w-xs w-full animate-slideUp">
-      <div className="glass-dark rounded-2xl border border-[#b76e79]/30 shadow-2xl overflow-hidden">
+      <div className="glass-liquid rounded-2xl border border-purple-500/20 shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-gradient-to-r from-[#b76e79]/20 to-[#6366f1]/10">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-purple-500/10 bg-gradient-to-r from-purple-600/20 to-[#b76e79]/10">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-[#e8a0a8]" />
-            <span className="text-[12px] font-semibold text-white/90">✨ New Arrivals!</span>
+            <span className="text-[12px] font-semibold text-white/90">New Arrivals</span>
           </div>
           <button onClick={dismiss} className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-white/10 transition-all">
             <X className="w-3 h-3 text-white/40" />
@@ -97,98 +97,71 @@ function NewArrivalsPopup() {
   )
 }
 
-// ── Mobile Link Section ───────────────────────────────────────
-function MobileAppBanner() {
-  const mobileUrl = window.location.origin
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(mobileUrl).then(() => {
-      alert('Link copied! Share it or open on your phone.')
-    }).catch(() => {
-      prompt('Copy this link to open on mobile:', mobileUrl)
-    })
-  }
-
-  return (
-    <section className="relative py-12 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="glass rounded-3xl border border-[#b76e79]/20 p-8 flex flex-col sm:flex-row items-center gap-6 relative overflow-hidden">
-          {/* Glow */}
-          <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-[#b76e79]/15 blur-3xl pointer-events-none" />
-
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#b76e79] to-[#6366f1] flex items-center justify-center flex-shrink-0 shadow-lg shadow-[#b76e79]/20">
-            <Smartphone className="w-8 h-8 text-white" />
-          </div>
-
-          <div className="flex-1 text-center sm:text-left">
-            <h3 className="font-serif text-xl font-bold text-white/90 mb-1">Shop on Mobile</h3>
-            <p className="text-[13px] text-white/40 leading-relaxed">
-              Open Ellaura on your phone for the best shopping experience. Save to your home screen for instant access!
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-3 flex-shrink-0">
-            <button
-              onClick={copyLink}
-              className="btn-liquid rounded-2xl px-6 py-3 text-[13px] font-semibold text-white flex items-center gap-2 active:scale-95 transition-all"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Copy Mobile Link
-            </button>
-            <a
-              href={mobileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass rounded-2xl border border-white/10 px-6 py-3 text-[13px] font-medium text-white/60 hover:text-white hover:bg-white/8 transition-all flex items-center gap-2"
-            >
-              <Smartphone className="w-4 h-4" />
-              Open
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function AboutSection() {
   return (
     <section id="about" className="relative py-20 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Divider */}
         <div className="flex items-center gap-4 mb-12">
-          <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent to-[#b76e79]/25" />
-          <Sparkles className="w-4 h-4 text-[#b76e79]/50" />
-          <div className="flex-1 h-[1px] bg-gradient-to-l from-transparent to-[#b76e79]/25" />
+          <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent to-purple-500/25" />
+          <Sparkles className="w-4 h-4 text-purple-400/50" />
+          <div className="flex-1 h-[1px] bg-gradient-to-l from-transparent to-purple-500/25" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* Left: Statement */}
           <div>
-            <p className="text-[10px] tracking-[0.35em] text-[#b76e79]/60 uppercase mb-5">Our Philosophy</p>
+            <p className="text-[10px] tracking-[0.35em] text-purple-400/60 uppercase mb-5">Our Philosophy</p>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white/90 mb-6 leading-snug">
               Every woman deserves to feel like the night was made for her.
             </h2>
             <p className="text-[15px] text-white/45 leading-relaxed mb-6">
               Ellaura crafts custom pieces that fit your body, your mood, and your night — not the other way around. Each silhouette is hand-stitched by artisans in Coimbatore, delivered in 48 hours.
             </p>
-            <button className="btn-liquid rounded-2xl px-7 py-3.5 text-sm font-medium text-white tracking-wide active:scale-95 transition-all">
+
+            {/* Custom Fit Process */}
+            <div className="glass-premium rounded-2xl border border-purple-500/15 p-5 mb-6">
+              <h4 className="text-[13px] font-semibold text-white/80 mb-3 flex items-center gap-2">
+                <Scissors className="w-4 h-4 text-purple-400" />
+                Custom Fit Process
+              </h4>
+              <div className="space-y-2.5">
+                {[
+                  { step: '01', label: 'Share your measurements via WhatsApp' },
+                  { step: '02', label: 'Choose your fabric, color & silhouette preferences' },
+                  { step: '03', label: 'Our artisans hand-stitch your piece in Coimbatore' },
+                  { step: '04', label: 'Delivered to your doorstep within 48 hours' },
+                ].map(({ step, label }) => (
+                  <div key={step} className="flex items-start gap-3">
+                    <span className="text-[11px] font-bold text-purple-400/80 bg-purple-500/10 rounded-lg px-2 py-1 flex-shrink-0">{step}</span>
+                    <p className="text-[12px] text-white/50 leading-relaxed pt-0.5">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <a
+              href="https://wa.me/919087915193?text=Hi%20Ellaura!%20I%E2%80%99d%20love%20to%20book%20a%20free%20fitting%20consultation"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-liquid rounded-2xl px-7 py-3.5 text-sm font-medium text-white tracking-wide active:scale-95 transition-all inline-block text-center"
+            >
               Book a Free Fitting Consultation
-            </button>
+            </a>
           </div>
 
           {/* Right: feature cards */}
           <div className="grid grid-cols-3 gap-4">
             {[
-              { icon: '✂️', title: 'Custom Fit', sub: 'Your measurements, your silhouette' },
-              { icon: '⚡', title: '48h Ready', sub: 'Express hand-stitching' },
-              { icon: '💎', title: 'Premium', sub: 'Finest fabrics only' },
-              { icon: '🔄', title: '7-Day Returns', sub: 'Hassle-free policy' },
-              { icon: '📐', title: 'Zero Alterations', sub: 'Perfect fit, guaranteed' },
-              { icon: '🌙', title: 'Night-Tested', sub: 'Designed for the evening' },
-            ].map(({ icon, title, sub }) => (
-              <div key={title} className="glass rounded-2xl border border-white/8 p-4 text-center hover:border-[#b76e79]/20 transition-all duration-300">
-                <span className="text-2xl block mb-2">{icon}</span>
+              { Icon: Scissors, title: 'Custom Fit', sub: 'Your measurements, your silhouette', color: 'text-[#b76e79]' },
+              { Icon: Zap, title: '48h Ready', sub: 'Express hand-stitching', color: 'text-purple-400' },
+              { Icon: Gem, title: 'Premium', sub: 'Finest fabrics only', color: 'text-purple-300' },
+              { Icon: RotateCcw, title: '7-Day Returns', sub: 'Hassle-free policy', color: 'text-[#b76e79]' },
+              { Icon: Ruler, title: 'Zero Alterations', sub: 'Perfect fit, guaranteed', color: 'text-purple-400' },
+              { Icon: MoonStar, title: 'Night-Tested', sub: 'Designed for the evening', color: 'text-purple-300' },
+            ].map(({ Icon, title, sub, color }) => (
+              <div key={title} className="glass-premium rounded-2xl border border-purple-500/15 p-4 text-center hover:border-purple-400/30 transition-all duration-300 group">
+                <Icon className={`w-6 h-6 mx-auto mb-2 ${color} group-hover:scale-110 transition-transform`} />
                 <p className="text-[12px] font-semibold text-white/80">{title}</p>
                 <p className="text-[10px] text-white/30 mt-1 leading-snug">{sub}</p>
               </div>
@@ -202,7 +175,7 @@ function AboutSection() {
 
 function Footer() {
   return (
-    <footer className="relative py-12 border-t border-white/5">
+    <footer className="relative py-12 border-t border-purple-500/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 pb-10 border-b border-white/5">
           {/* Brand */}
@@ -266,13 +239,6 @@ function Footer() {
           <p className="text-[11px] text-white/15">
             Privacy · Terms · Cookies
           </p>
-          <a
-            href="/admin"
-            className="text-[9px] text-white/8 hover:text-white/25 transition-colors tracking-widest uppercase"
-            title="Admin"
-          >
-            ⚙
-          </a>
         </div>
       </div>
     </footer>
@@ -284,7 +250,6 @@ export default function HomePage() {
     <main>
       <Hero />
       <ProductGallery />
-      <MobileAppBanner />
       <AboutSection />
       <Footer />
       <NewArrivalsPopup />

@@ -5,9 +5,11 @@
 @layer base {
   html {
     background-color: #050508;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
-  html.light {
-    background-color: #f4f0f5;
+  html::-webkit-scrollbar {
+    display: none;
   }
   body {
     background-color: #050508;
@@ -15,11 +17,12 @@
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: background-color 0.4s ease, color 0.4s ease;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    overflow-x: hidden;
   }
-  html.light body {
-    background-color: #f4f0f5;
-    color: #1a1020;
+  body::-webkit-scrollbar {
+    display: none;
   }
 
   /* Kill browser autofill white/yellow background on ALL inputs */
@@ -40,14 +43,6 @@
     background-color: transparent !important;
     transition: background-color 9999s ease-in-out 0s;
   }
-  html.light input:-webkit-autofill,
-  html.light input:-webkit-autofill:hover,
-  html.light input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0 1000px #ede8f0 inset !important;
-    box-shadow: 0 0 0 1000px #ede8f0 inset !important;
-    -webkit-text-fill-color: #1a1020 !important;
-    caret-color: #1a1020;
-  }
 
   /* Ensure inputs never show white bg when typed into */
   input, textarea, select {
@@ -66,6 +61,15 @@
     animation: shimmer 4s linear infinite;
   }
 
+  .text-sandal {
+    background: linear-gradient(135deg, #e8c9a0 0%, #c4956a 35%, #d4ae82 60%, #b87d52 80%, #d4ae82 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 4s linear infinite;
+  }
+
   /* ── Dark mode glasses ── */
   .glass {
     background: rgba(255, 255, 255, 0.04);
@@ -74,10 +78,10 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
   }
   .glass-dark {
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(8, 6, 14, 0.88);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
   }
   .glass-rose {
     background: rgba(183, 110, 121, 0.08);
@@ -86,147 +90,57 @@
     border: 1px solid rgba(183, 110, 121, 0.25);
   }
 
-  /* ── Light mode glass overrides ── */
-  html.light .glass {
-    background: rgba(255, 255, 255, 0.72);
-    border: 1px solid rgba(183, 110, 121, 0.15);
-    box-shadow: 0 2px 12px rgba(183, 110, 121, 0.08);
+  /* ── Premium liquid glass ── */
+  .glass-premium {
+    background: linear-gradient(135deg, rgba(139,92,246,0.06) 0%, rgba(255,255,255,0.04) 50%, rgba(183,110,121,0.06) 100%);
+    backdrop-filter: blur(28px) saturate(1.4);
+    -webkit-backdrop-filter: blur(28px) saturate(1.4);
+    border: 1px solid rgba(139,92,246,0.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.2);
   }
-  html.light .glass-dark {
-    background: rgba(255, 255, 255, 0.88);
-    border: 1px solid rgba(183, 110, 121, 0.12);
-    box-shadow: 0 4px 20px rgba(183, 110, 121, 0.1);
-  }
-  html.light .glass-rose {
-    background: rgba(183, 110, 121, 0.07);
-    border: 1px solid rgba(183, 110, 121, 0.2);
-  }
-
-  /* ── Light mode text overrides — much stronger contrast ── */
-  html.light .text-white\/95 { color: rgba(26,16,32,0.95) !important; }
-  html.light .text-white\/90 { color: rgba(26,16,32,0.92) !important; }
-  html.light .text-white\/80 { color: rgba(26,16,32,0.8) !important; }
-  html.light .text-white\/70 { color: rgba(26,16,32,0.7) !important; }
-  html.light .text-white\/60 { color: rgba(26,16,32,0.6) !important; }
-  html.light .text-white\/50 { color: rgba(26,16,32,0.55) !important; }
-  html.light .text-white\/45 { color: rgba(26,16,32,0.5) !important; }
-  html.light .text-white\/40 { color: rgba(26,16,32,0.5) !important; }
-  html.light .text-white\/35 { color: rgba(26,16,32,0.45) !important; }
-  html.light .text-white\/30 { color: rgba(26,16,32,0.42) !important; }
-  html.light .text-white\/25 { color: rgba(26,16,32,0.38) !important; }
-  html.light .text-white\/20 { color: rgba(26,16,32,0.32) !important; }
-  html.light .text-white\/15 { color: rgba(26,16,32,0.25) !important; }
-  html.light .text-white\/8 { color: rgba(26,16,32,0.15) !important; }
-  html.light .text-white { color: #1a1020 !important; }
-
-  /* ── Light mode border overrides ── */
-  html.light .border-white\/10 { border-color: rgba(183,110,121,0.15) !important; }
-  html.light .border-white\/8 { border-color: rgba(183,110,121,0.12) !important; }
-  html.light .border-white\/5 { border-color: rgba(183,110,121,0.08) !important; }
-  html.light .border-white\/20 { border-color: rgba(183,110,121,0.2) !important; }
-
-  /* ── Light mode bg overrides ── */
-  html.light .bg-black\/60 { background-color: rgba(0,0,0,0.35) !important; }
-  html.light .bg-black\/70 { background-color: rgba(0,0,0,0.4) !important; }
-  html.light .bg-black\/65 { background-color: rgba(255,255,255,0.85) !important; }
-  html.light .bg-black\/30 { background-color: rgba(255,255,255,0.6) !important; }
-
-  /* ── Light mode specific element overrides ── */
-  html.light .neon-bg {
-    background:
-      radial-gradient(ellipse 60% 40% at 20% 20%, rgba(183,110,121,0.10) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 50% at 80% 80%, rgba(99,102,241,0.07) 0%, transparent 60%),
-      radial-gradient(ellipse 40% 30% at 50% 50%, rgba(232,160,168,0.05) 0%, transparent 70%),
-      #f4f0f5;
+  .glass-liquid {
+    background: linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(183,110,121,0.05) 50%, rgba(99,102,241,0.08) 100%);
+    backdrop-filter: blur(40px) saturate(1.6);
+    -webkit-backdrop-filter: blur(40px) saturate(1.6);
+    border: 1px solid rgba(139,92,246,0.15);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 48px rgba(139,92,246,0.08);
   }
 
-  /* Light mode button fixes */
-  html.light .btn-liquid {
-    background: linear-gradient(135deg, rgba(183,110,121,1) 0%, rgba(139,79,90,1) 50%, rgba(99,102,241,0.9) 100%);
-    box-shadow: 0 4px 24px rgba(183,110,121,0.3);
-  }
-  html.light .btn-liquid:hover {
-    box-shadow: 0 8px 40px rgba(183,110,121,0.4), 0 0 40px rgba(99,102,241,0.15);
-  }
-  /* Ensure btn-liquid text stays white in light mode */
-  html.light .btn-liquid { color: #ffffff !important; }
-  html.light .btn-liquid * { color: #ffffff !important; }
-
-  /* Light mode gradient text fix */
-  html.light .text-gradient-hero {
-    background: linear-gradient(180deg, #1a1020 0%, #b76e79 60%, #8b4f5a 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Light mode rose-gold text */
-  html.light .text-rose-gold {
-    background: linear-gradient(135deg, #b76e79 0%, #8b4f5a 40%, #b76e79 70%, #a86571 100%);
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Light mode price color stays visible */
-  html.light .text-\[\#e8a0a8\] { color: #b76e79 !important; }
-  html.light .text-\[\#b76e79\] { color: #8b4f5a !important; }
-
-  /* Light mode star fills stay visible */
-  html.light .fill-\[\#e8a0a8\] { fill: #b76e79 !important; }
-
-  /* Light mode header */
-  html.light header {
-    backdrop-filter: blur(24px) !important;
-    -webkit-backdrop-filter: blur(24px) !important;
-  }
-
-  /* Light mode emerald text stays green */
-  html.light .text-emerald-400 { color: rgb(52, 211, 153) !important; }
-  html.light .text-amber-400 { color: rgb(251, 191, 36) !important; }
-  html.light .text-red-400 { color: rgb(248, 113, 113) !important; }
-
-  /* Light mode cart/modal backgrounds */
-  html.light .glass-dark {
-    background: rgba(255, 255, 255, 0.92) !important;
-  }
-
-  /* Light mode divider/divide overrides */
-  html.light .divide-white\/\[0\.04\] > * + * {
-    border-color: rgba(183,110,121,0.1) !important;
-  }
 
   .glow-rose {
-    box-shadow: 0 0 20px rgba(183, 110, 121, 0.35), 0 0 60px rgba(183, 110, 121, 0.12);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.35), 0 0 60px rgba(183, 110, 121, 0.12);
   }
   .glow-indigo {
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.35), 0 0 60px rgba(99, 102, 241, 0.12);
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.35), 0 0 60px rgba(99, 102, 241, 0.12);
+  }
+  .glow-purple {
+    box-shadow: 0 0 25px rgba(139, 92, 246, 0.4), 0 0 80px rgba(139, 92, 246, 0.15);
   }
 
   .text-gradient-hero {
-    background: linear-gradient(180deg, #ffffff 0%, #e8a0a8 60%, #b76e79 100%);
+    background: linear-gradient(160deg, #ffffff 0%, #f0d6da 45%, #e8a0a8 75%, #b76e79 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .btn-liquid {
-    background: linear-gradient(135deg, rgba(183,110,121,0.9) 0%, rgba(139,79,90,0.9) 50%, rgba(99,102,241,0.7) 100%);
+    background: linear-gradient(135deg, rgba(139,92,246,0.85) 0%, rgba(183,110,121,0.9) 50%, rgba(99,102,241,0.8) 100%);
     background-size: 200% 200%;
     transition: background-position 0.5s ease, transform 0.3s ease, box-shadow 0.3s ease;
-    box-shadow: 0 4px 24px rgba(183,110,121,0.4);
+    box-shadow: 0 4px 24px rgba(139,92,246,0.35), 0 0 40px rgba(139,92,246,0.08);
   }
   .btn-liquid:hover {
     background-position: 100% 100%;
-    box-shadow: 0 8px 40px rgba(183,110,121,0.6), 0 0 80px rgba(99,102,241,0.2);
+    box-shadow: 0 8px 40px rgba(139,92,246,0.5), 0 0 80px rgba(183,110,121,0.15);
   }
 
   .neon-bg {
     background: 
-      radial-gradient(ellipse 60% 40% at 20% 20%, rgba(183,110,121,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 20% 20%, rgba(139,92,246,0.12) 0%, transparent 60%),
       radial-gradient(ellipse 50% 50% at 80% 80%, rgba(99,102,241,0.10) 0%, transparent 60%),
-      radial-gradient(ellipse 40% 30% at 50% 50%, rgba(232,160,168,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 30% at 50% 50%, rgba(183,110,121,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 30% 25% at 70% 30%, rgba(139,92,246,0.08) 0%, transparent 50%),
       #050508;
   }
 
@@ -349,4 +263,23 @@
 
 .animate-bounce-subtle {
   animation: bounceSub 2s ease-in-out infinite;
+}
+
+/* ── Mobile-first enhancements ── */
+@media (max-width: 640px) {
+  .glass, .glass-dark, .glass-premium, .glass-liquid {
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  }
+  
+  /* Better touch targets on mobile */
+  button, a {
+    min-height: 44px;
+  }
+  
+  /* Smoother scrolling */
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
 }

@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, ShoppingBag, MapPin, Phone, User, Mail, CreditCard, Lock, CheckCircle, Info, Tag, X as XIcon } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, MapPin, Phone, User, Mail, Lock, CheckCircle, Info, Tag, X as XIcon, Smartphone, Package, ChevronDown } from 'lucide-react'
+import { useCart, useAuth, useUI } from '../context/AppContext'
+import { createOrder, decrementProductStock, getSavedAddresses, saveAddress, sendWhatsAppOrderNotification } from '../lib/supabase'
+import { openRazorpayCheckout, RAZORPAY_DEMO_MODE } from '../lib/razorpay'
 
 // ── Coupon definitions ─────────────────────────────────────────
 const COUPONS = {
@@ -9,125 +12,6 @@ const COUPONS = {
   'BANDRA500': { type: 'fixed',   value: 500, label: '₹500 off — Bandra Special' },
   'VIP15':     { type: 'percent', value: 15, label: '15% VIP Discount' },
   'FREESHIP':  { type: 'fixed',   value: 0,  label: 'Free Shipping (already free!)' },
-}
-import { useCart, useAuth, useUI } from '../context/AppContext'
-import { createOrder } from '../lib/supabase'
-import { loadStripe } from '@stripe/stripe-js'
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder')
-
-const CARD_ELEMENT_OPTIONS = {
-  style: {
-    base: {
-      fontSize: '14px',
-      color: 'rgba(255,255,255,0.87)',
-      fontFamily: 'Inter, sans-serif',
-      fontSmoothing: 'antialiased',
-      '::placeholder': { color: 'rgba(255,255,255,0.25)' },
-      iconColor: '#b76e79',
-    },
-    invalid: { color: '#f87171', iconColor: '#f87171' },
-  },
-}
-
-// ── Payment form — must live inside <Elements> context ─────────
-function StripePaymentForm({ demoMode, card, setC, cartTotal, onPay, onBack, error: parentError }) {
-  const stripe = useStripe()
-  const elements = useElements()
-  const [localError, setLocalError] = useState('')
-  const error = parentError || localError
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLocalError('')
-    if (!demoMode && !stripe) return setLocalError('Stripe is still loading. Please wait.')
-    onPay(stripe, elements)
-  }
-
-  const inputClass = 'w-full bg-transparent text-white placeholder-white/25 outline-none text-[14px] py-3'
-  const wrapClass = 'glass rounded-2xl border border-white/10 px-4 flex items-center gap-3 focus-within:border-[#b76e79]/40 transition-all duration-300'
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-5 animate-fadeIn">
-      <div>
-        <h2 className="font-serif text-xl font-semibold text-white/90 mb-1">Payment</h2>
-        {demoMode && (
-          <div className="flex items-start gap-2 glass border border-amber-400/20 rounded-xl px-4 py-3 mb-4 text-[12px] text-amber-400/80">
-            <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <p>Demo mode active. Add your Stripe key in <code className="font-mono">.env</code> for live payments. Card details entered here are <strong>not</strong> processed.</p>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Name on Card</label>
-            <div className={wrapClass}>
-              <User className="w-4 h-4 text-white/30 flex-shrink-0" />
-              <input type="text" placeholder="As on your card" value={card.nameOnCard} onChange={setC('nameOnCard')} className={inputClass} required />
-            </div>
-          </div>
-
-          {demoMode ? (
-            <>
-              <div>
-                <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Card Number</label>
-                <div className={wrapClass}>
-                  <CreditCard className="w-4 h-4 text-white/30 flex-shrink-0" />
-                  <input type="text" placeholder="1234 5678 9012 3456" value={card.number} onChange={setC('number')} maxLength={19} className={inputClass + ' font-mono tracking-widest'} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Expiry</label>
-                  <div className={wrapClass}>
-                    <input type="text" placeholder="MM/YY" value={card.expiry} onChange={setC('expiry')} maxLength={5} className={inputClass + ' font-mono'} />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">CVC</label>
-                  <div className={wrapClass}>
-                    <input type="text" placeholder="•••" value={card.cvc} onChange={setC('cvc')} maxLength={3} className={inputClass + ' font-mono tracking-widest'} />
-                    <Lock className="w-3.5 h-3.5 text-white/20 flex-shrink-0" />
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div>
-              <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Card Details</label>
-              <div className="glass rounded-2xl border border-white/10 px-4 py-3.5 focus-within:border-[#b76e79]/40 transition-all duration-300">
-                <CardElement options={CARD_ELEMENT_OPTIONS} />
-              </div>
-              <p className="text-[10px] text-white/20 mt-1.5 flex items-center gap-1.5">
-                <Lock className="w-2.5 h-2.5" /> Card details encrypted by Stripe — never touch our servers.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {error && <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5">{error}</p>}
-
-      <button
-        type="submit"
-        disabled={!stripe && !demoMode}
-        className="w-full btn-liquid rounded-2xl py-4 text-[15px] font-semibold text-white tracking-wide flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
-      >
-        <Lock className="w-4 h-4" />
-        {demoMode ? `Place Demo Order — ₹${cartTotal.toLocaleString('en-IN')}` : `Pay Securely — ₹${cartTotal.toLocaleString('en-IN')}`}
-      </button>
-
-      <p className="text-center text-[11px] text-white/20 flex items-center justify-center gap-1.5">
-        <Lock className="w-3 h-3" />
-        {demoMode ? 'Demo mode — no real payment' : 'Secured by Stripe · 256-bit SSL encryption'}
-      </p>
-
-      <button type="button" onClick={onBack} className="w-full text-center text-[12px] text-white/25 hover:text-white/50 transition-colors">
-        ← Edit shipping details
-      </button>
-    </form>
-  )
 }
 
 export default function CheckoutPage() {
@@ -142,6 +26,8 @@ export default function CheckoutPage() {
   const [couponInput, setCouponInput] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState(null)
   const [couponError, setCouponError] = useState('')
+  const [savedAddresses, setSavedAddresses] = useState([])
+  const [saveAddrChecked, setSaveAddrChecked] = useState(true)
 
   const discountAmount = appliedCoupon
     ? appliedCoupon.type === 'percent'
@@ -163,33 +49,39 @@ export default function CheckoutPage() {
     setCouponError('')
     setCouponInput('')
   }
-  const demoMode = !import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY.includes('placeholder') ||
-    import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY.includes('YOUR_KEY')
 
   const [shipping, setShipping] = useState({
     name: '', email: user?.email || '', phone: '',
     line1: '', line2: '', city: '', state: '', pincode: '',
   })
 
-  const [card, setCard] = useState({
-    number: '', expiry: '', cvc: '', nameOnCard: '',
-  })
-
   useEffect(() => {
-    if (items.length === 0) {
-      navigate('/')
-    }
+    if (items.length === 0) navigate('/')
   }, [items])
 
+  // Load saved addresses and pre-fill the most recent/default one
+  useEffect(() => {
+    if (!user?.id) return
+    getSavedAddresses(user.id).then(addrs => {
+      setSavedAddresses(addrs)
+      if (addrs.length > 0) {
+        const def = addrs.find(a => a.is_default) || addrs[0]
+        setShipping(s => ({
+          ...s,
+          name: def.name || s.name,
+          phone: def.phone || s.phone,
+          email: def.email || s.email,
+          line1: def.line1 || s.line1,
+          line2: def.line2 || s.line2,
+          city: def.city || s.city,
+          state: def.state || s.state,
+          pincode: def.pincode || s.pincode,
+        }))
+      }
+    })
+  }, [user?.id])
+
   const setS = (key) => (e) => setShipping(s => ({ ...s, [key]: e.target.value }))
-  const setC = (key) => (e) => {
-    let val = e.target.value.replace(/\D/g, '')
-    if (key === 'number') val = val.slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
-    if (key === 'expiry') val = val.slice(0, 4).replace(/(.{2})/, '$1/')
-    if (key === 'cvc') val = val.slice(0, 3)
-    setCard(c => ({ ...c, [key]: val }))
-  }
 
   const formatPrice = (p) => `₹${p.toLocaleString('en-IN')}`
 
@@ -199,102 +91,66 @@ export default function CheckoutPage() {
     for (const f of required) {
       if (!shipping[f].trim()) return setError(`Please fill in your ${f.replace(/([A-Z])/g, ' $1').toLowerCase()}.`)
     }
+    if (shipping.pincode.length !== 6) return setError('Please enter a valid 6-digit PIN code.')
     setError('')
     setStep('payment')
   }
 
-  const handlePay = async (stripe, elements) => {
+  const handleRazorpayPay = async () => {
     setError('')
     setLoading(true)
     setStep('processing')
 
-    try {
-      // Demo mode: simulate payment with fake order
-      if (demoMode) {
-        await new Promise(r => setTimeout(r, 2000))
+    const orderId = `ELLAURA_${Date.now()}`
+    const orderItems = items.map(i => ({
+      product: { id: i.product.id, name: i.product.name, price: i.product.price, img: i.product.img },
+      qty: i.qty,
+      size: i.size,
+    }))
+
+    const onSuccess = async (paymentResponse) => {
+      try {
         const order = await createOrder({
           userId: user?.id || null,
-          items: items.map(i => ({
-            productId: i.product.id,
-            name: i.product.name,
-            price: i.product.price,
-            qty: i.qty,
-            size: i.size,
-          })),
+          items: orderItems,
+          subtotal: cartTotal,
           total: finalTotal,
           shippingAddress: shipping,
-          stripePaymentIntentId: `demo_${Date.now()}`,
-        }).catch(() => ({ id: `demo_order_${Date.now()}` }))
+          stripePaymentIntentId: paymentResponse.razorpay_payment_id,
+        }).catch(() => ({ id: orderId }))
+
+        await Promise.all(items.map(i => decrementProductStock(i.product.id, i.qty)))
+
+        if (saveAddrChecked && user?.id) saveAddress(user.id, shipping)
+
+        sendWhatsAppOrderNotification({ orderId: order.id || orderId, items: orderItems, total: finalTotal, shipping })
 
         clearCart()
         showToast('Order placed successfully! 🎉', 'success')
-        navigate('/order-success', { state: { orderId: order.id, shipping, total: cartTotal } })
-        return
+        navigate('/order-success', { state: { orderId: order.id || orderId, shipping, total: finalTotal } })
+      } catch (err) {
+        setError(err.message || 'Order creation failed. Contact support.')
+        setStep('payment')
+      } finally {
+        setLoading(false)
       }
+    }
 
-      // Production: create payment intent via Supabase Edge Function
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-payment-intent`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            amount: finalTotal * 100, // convert ₹ to paise
-            currency: 'inr',
-            metadata: { userId: user?.id || 'guest' },
-          }),
-        }
-      )
-      const { clientSecret, error: apiError } = await res.json()
-      if (apiError) throw new Error(apiError)
-
-      const cardElement = elements.getElement(CardElement)
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            name: card.nameOnCard || shipping.name,
-            email: shipping.email,
-            phone: shipping.phone,
-            address: {
-              line1: shipping.line1,
-              line2: shipping.line2 || undefined,
-              city: shipping.city,
-              state: shipping.state,
-              postal_code: shipping.pincode,
-              country: 'IN',
-            },
-          },
-        },
-      })
-      if (stripeError) throw new Error(stripeError.message)
-
-      const order = await createOrder({
-        userId: user?.id || null,
-        items: items.map(i => ({
-          productId: i.product.id,
-          name: i.product.name,
-          price: i.product.price,
-          qty: i.qty,
-          size: i.size,
-        })),
-        total: finalTotal,
-        shippingAddress: shipping,
-        stripePaymentIntentId: paymentIntent.id,
-      })
-
-      clearCart()
-      showToast('Order placed successfully! 🎉', 'success')
-      navigate('/order-success', { state: { orderId: order.id, shipping, total: cartTotal } })
-    } catch (err) {
-      setError(err.message)
+    const onFailure = (err) => {
+      setError(err.message || 'Payment failed. Please try again.')
       setStep('payment')
-    } finally {
       setLoading(false)
     }
+
+    await openRazorpayCheckout({
+      orderId,
+      amount: finalTotal,
+      name: shipping.name,
+      email: shipping.email,
+      phone: shipping.phone,
+      onSuccess,
+      onFailure,
+    })
   }
 
   const inputClass = "w-full bg-transparent text-white placeholder-white/25 outline-none text-[14px] py-3"
@@ -323,7 +179,7 @@ export default function CheckoutPage() {
                 <div key={key} className="flex items-center gap-2">
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold transition-all ${
                     step === key || (step === 'processing' && key === 'payment')
-                      ? 'bg-gradient-to-br from-[#b76e79] to-[#8b4f5a] text-white'
+                      ? 'bg-gradient-to-br from-purple-600 to-purple-800 text-white'
                       : step === 'payment' && key === 'shipping'
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                       : 'glass border border-white/10 text-white/30'
@@ -340,7 +196,35 @@ export default function CheckoutPage() {
             {step === 'shipping' && (
               <form onSubmit={handleShippingNext} className="space-y-5 animate-fadeIn">
                 <div>
-                  <h2 className="font-serif text-xl font-semibold text-white/90 mb-4">Delivery Details</h2>
+                  <h2 className="font-serif text-xl font-semibold text-white/90 mb-1">Delivery Address</h2>
+                  <p className="text-[12px] text-white/30 mb-4">Where should we send your order?</p>
+
+                  {/* Saved address picker */}
+                  {savedAddresses.length > 0 && (
+                    <div className="mb-4">
+                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Use a Saved Address</label>
+                      <div className="relative">
+                        <select
+                          onChange={e => {
+                            const a = savedAddresses[parseInt(e.target.value)]
+                            if (!a) return
+                            setShipping(s => ({ ...s, name: a.name || s.name, phone: a.phone || s.phone, email: a.email || s.email, line1: a.line1 || '', line2: a.line2 || '', city: a.city || '', state: a.state || '', pincode: a.pincode || '' }))
+                          }}
+                          className="w-full glass rounded-2xl border border-white/10 px-4 py-3 text-[13px] text-white bg-transparent appearance-none pr-10 focus:border-[#b76e79]/40 transition-all outline-none"
+                        >
+                          <option value="" className="bg-[#1a1a1e]">— select a saved address —</option>
+                          {savedAddresses.map((a, i) => (
+                            <option key={a.id} value={i} className="bg-[#1a1a1e]">
+                              {a.line1}, {a.city} — {a.pincode}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
+                      </div>
+                      <p className="text-[10px] text-white/20 mt-1 ml-1">Or fill in a new address below</p>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Full Name *</label>
@@ -391,11 +275,26 @@ export default function CheckoutPage() {
                     <div>
                       <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">PIN Code *</label>
                       <div className={wrapClass}>
-                        <input type="text" placeholder="6-digit PIN" value={shipping.pincode} onChange={setS('pincode')} maxLength={6} className={inputClass} />
+                        <input type="text" placeholder="6-digit PIN" value={shipping.pincode} onChange={setS('pincode')} maxLength={6} className={inputClass + ' font-mono'} />
                       </div>
                     </div>
                   </div>
                 </div>
+
+                {/* Save address checkbox */}
+                {user?.id && (
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div
+                      onClick={() => setSaveAddrChecked(v => !v)}
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all ${
+                        saveAddrChecked ? 'bg-[#b76e79] border-[#b76e79]' : 'border-white/20 glass'
+                      }`}
+                    >
+                      {saveAddrChecked && <CheckCircle className="w-3.5 h-3.5 text-white" />}
+                    </div>
+                    <span className="text-[12px] text-white/50 group-hover:text-white/70 transition-colors">Save this address for future orders</span>
+                  </label>
+                )}
 
                 {error && <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5">{error}</p>}
 
@@ -405,25 +304,90 @@ export default function CheckoutPage() {
               </form>
             )}
 
-            {/* ── Payment Form ── */}
+            {/* ── Payment Step — Razorpay ── */}
             {step === 'payment' && (
-              <Elements stripe={stripePromise}>
-                <StripePaymentForm
-                  demoMode={demoMode}
-                  card={card}
-                  setC={setC}
-                  cartTotal={finalTotal}
-                  onPay={handlePay}
-                  onBack={() => setStep('shipping')}
-                  error={error}
-                />
-              </Elements>
+              <div className="space-y-5 animate-fadeIn">
+                <div>
+                  <h2 className="font-serif text-xl font-semibold text-white/90 mb-1">Payment</h2>
+                  <p className="text-[13px] text-white/40 mb-4">Pay securely via Razorpay (UPI, Cards, Net Banking)</p>
+
+                  {RAZORPAY_DEMO_MODE && (
+                    <div className="flex items-start gap-2 glass border border-amber-400/20 rounded-xl px-4 py-3 mb-5 text-[12px] text-amber-400/80">
+                      <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <p>Demo mode active. Add your Razorpay Key ID in <code className="font-mono text-[11px]">.env</code> for live payments. No real charges will be made.</p>
+                    </div>
+                  )}
+
+                  {/* Delivery destination summary */}
+                  {shipping.city && (
+                    <div className="glass rounded-2xl border border-white/10 p-4 mb-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600/20 to-purple-800/20 flex items-center justify-center">
+                          <Package className="w-5 h-5 text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-medium text-white/80">Shipping to {shipping.city}, {shipping.state}</p>
+                          <p className="text-[11px] text-white/40">2–5 business days via courier</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment option: Razorpay */}
+                  <div className="glass-premium rounded-2xl border border-[#b76e79]/20 p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#b76e79] to-[#8b4958] flex items-center justify-center shadow-lg">
+                        <Lock className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-white/90 text-[15px]">Razorpay</p>
+                        <p className="text-[11px] text-white/40">UPI · Cards · Net Banking · Wallet</p>
+                      </div>
+                      <CheckCircle className="w-5 h-5 text-[#b76e79] ml-auto" />
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2 mb-4">
+                      {['UPI', 'Cards', 'NetBank', 'Wallet'].map(m => (
+                        <div key={m} className="glass rounded-lg py-2 text-center border border-white/8">
+                          <p className="text-[10px] text-white/40">{m}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p className="text-[11px] text-white/30 mb-4">
+                      A secure Razorpay popup will open to complete your payment — no page redirect needed.
+                    </p>
+                  </div>
+                </div>
+
+                {error && <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5">{error}</p>}
+
+                <button
+                  onClick={handleRazorpayPay}
+                  disabled={loading}
+                  className="w-full btn-liquid rounded-2xl py-4 text-[15px] font-semibold text-white tracking-wide flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
+                >
+                  <Lock className="w-4 h-4" />
+                  {RAZORPAY_DEMO_MODE
+                    ? `Place Demo Order — ${formatPrice(finalTotal)}`
+                    : `Pay ${formatPrice(finalTotal)} via Razorpay`}
+                </button>
+
+                <p className="text-center text-[11px] text-white/20 flex items-center justify-center gap-1.5">
+                  <Lock className="w-3 h-3" />
+                  {RAZORPAY_DEMO_MODE ? 'Demo mode — no real payment' : 'Secured by Razorpay · 256-bit SSL encryption'}
+                </p>
+
+                <button type="button" onClick={() => setStep('shipping')} className="w-full text-center text-[12px] text-white/25 hover:text-white/50 transition-colors">
+                  ← Edit shipping details
+                </button>
+              </div>
             )}
 
             {/* ── Processing ── */}
             {step === 'processing' && (
               <div className="flex flex-col items-center justify-center py-20 gap-6 animate-fadeIn">
-                <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-[#b76e79] to-[#6366f1] flex items-center justify-center animate-pulse-rose">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-purple-600 to-indigo-700 flex items-center justify-center animate-pulse-rose">
                   <Lock className="w-7 h-7 text-white" />
                 </div>
                 <div className="text-center">
@@ -432,7 +396,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex gap-2">
                   {[0, 1, 2].map(i => (
-                    <div key={i} className="w-2 h-2 rounded-full bg-[#b76e79] thinking-dot" />
+                    <div key={i} className="w-2 h-2 rounded-full bg-purple-500 thinking-dot" />
                   ))}
                 </div>
               </div>
@@ -442,10 +406,10 @@ export default function CheckoutPage() {
           {/* ── Right: Order Summary ── */}
           <div className="lg:sticky lg:top-24 h-fit">
             <div className="glass-dark rounded-[24px] border border-white/10 overflow-hidden shadow-2xl">
-              <div className="h-0.5 w-full bg-gradient-to-r from-[#b76e79] to-[#6366f1]" />
+              <div className="h-0.5 w-full bg-gradient-to-r from-purple-600 to-indigo-600" />
               <div className="p-5">
                 <h3 className="font-serif text-base font-semibold text-white/90 mb-4 flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-[#e8a0a8]" /> Order Summary
+                  <ShoppingBag className="w-4 h-4 text-purple-400" /> Order Summary
                 </h3>
 
                 <div className="space-y-3 mb-4">
@@ -455,7 +419,7 @@ export default function CheckoutPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-serif text-[13px] font-semibold text-white/85 leading-tight truncate">{product.name}</p>
                         <p className="text-[10px] text-white/35 mt-0.5">Size {size} · Qty {qty}</p>
-                        <p className="text-[#e8a0a8] text-[12px] font-semibold mt-1">{formatPrice(product.price * qty)}</p>
+                        <p className="text-purple-300 text-[12px] font-semibold mt-1">{formatPrice(product.price * qty)}</p>
                       </div>
                     </div>
                   ))}
@@ -479,7 +443,7 @@ export default function CheckoutPage() {
                   ) : (
                     <div>
                       <div className="flex gap-2">
-                        <div className="flex-1 glass rounded-xl border border-white/10 px-3 flex items-center gap-2 focus-within:border-[#b76e79]/30 transition-all">
+                        <div className="flex-1 glass rounded-xl border border-white/10 px-3 flex items-center gap-2 focus-within:border-purple-500/30 transition-all">
                           <Tag className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
                           <input
                             type="text"
@@ -510,8 +474,9 @@ export default function CheckoutPage() {
                     <span>Custom Stitching</span><span className="text-emerald-400">Free</span>
                   </div>
                   <div className="flex justify-between text-[13px] text-white/50">
-                    <span>Express Delivery</span><span className="text-emerald-400">Free</span>
+                    <span>Shipping</span><span className="text-emerald-400">Free</span>
                   </div>
+
                   {appliedCoupon && discountAmount > 0 && (
                     <div className="flex justify-between text-[13px] text-emerald-400 font-medium">
                       <span>Discount ({appliedCoupon.code})</span>
@@ -520,7 +485,7 @@ export default function CheckoutPage() {
                   )}
                   <div className="flex justify-between text-base font-bold pt-2 border-t border-white/8">
                     <span className="text-white">Total</span>
-                    <span className="text-[#e8a0a8]">{formatPrice(finalTotal)}</span>
+                    <span className="text-purple-300">{formatPrice(finalTotal)}</span>
                   </div>
                 </div>
 
@@ -531,6 +496,15 @@ export default function CheckoutPage() {
                       <p className="text-[9px] text-white/35 leading-tight">{t}</p>
                     </div>
                   ))}
+                </div>
+
+                {/* Payment method badge */}
+                <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-white/20">
+                  <Smartphone className="w-3 h-3" />
+                  <span>Secured by Razorpay</span>
+                  <span>·</span>
+                  <Package className="w-3 h-3" />
+                  <span>Shipped by us with care</span>
                 </div>
               </div>
             </div>

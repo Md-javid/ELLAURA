@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Heart, Star, Zap, Moon, ShoppingBag, Eye, X, Shirt } from 'lucide-react'
 import { useCart, useUI } from '../context/AppContext'
-import { getLiveProducts, getProductsByVibe, COLOR_SWATCHES } from '../lib/products'
+import { getLiveProducts, COLOR_SWATCHES } from '../lib/products'
+import { getProducts } from '../lib/supabase'
 
 // ── Vibe Toggle ────────────────────────────────────────────────
 function VibeToggle({ vibe, onToggle }) {
@@ -146,8 +147,8 @@ function ProductCard({ product, index }) {
   return (
     <>
       <div
-        className={`group glass rounded-3xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.35)] overflow-hidden transition-all duration-500 cursor-pointer ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-          } hover:-translate-y-2 hover:shadow-[0_20px_60px_rgba(183,110,121,0.18)] hover:border-white/20`}
+        className={`group glass-premium rounded-3xl border border-purple-500/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.35)] overflow-hidden transition-all duration-500 cursor-pointer ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          } hover:-translate-y-2 hover:shadow-[0_20px_60px_rgba(139,92,246,0.15)] hover:border-purple-500/25`}
         onClick={handleCardClick}
       >
         {/* ── Image ── */}
@@ -270,14 +271,29 @@ function ProductCard({ product, index }) {
 export default function ProductGallery() {
   const [vibe, setVibe] = useState('all')
   const [transitioning, setTransitioning] = useState(false)
-  const [displayed, setDisplayed] = useState(() => getLiveProducts())
+  const [allProducts, setAllProducts] = useState([])
+  const [displayed, setDisplayed] = useState([])
+
+  // Fetch from Supabase on mount; fall back to localStorage
+  useEffect(() => {
+    getProducts().then(dbProducts => {
+      const products = (dbProducts && dbProducts.length > 0)
+        ? dbProducts
+        : getLiveProducts()
+      setAllProducts(products)
+      setDisplayed(products)
+    })
+  }, [])
+
+  const filterByVibe = (products, v) =>
+    v === 'all' ? products : products.filter(p => p.vibe?.includes(v))
 
   const handleVibeToggle = (newVibe) => {
     if (newVibe === vibe) return
     setTransitioning(true)
     setTimeout(() => {
       setVibe(newVibe)
-      setDisplayed(newVibe === 'all' ? getLiveProducts() : getProductsByVibe(newVibe))
+      setDisplayed(filterByVibe(allProducts, newVibe))
       setTransitioning(false)
     }, 250)
   }
@@ -288,8 +304,8 @@ export default function ProductGallery() {
       <div className="mb-10 lg:flex lg:items-end lg:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-[1px] bg-gradient-to-r from-[#b76e79] to-transparent" />
-            <span className="text-[10px] tracking-[0.35em] text-[#b76e79]/70 uppercase">The Launch Collection</span>
+            <div className="w-8 h-[1px] bg-gradient-to-r from-purple-500 to-transparent" />
+            <span className="text-[10px] tracking-[0.35em] text-purple-400/70 uppercase">The Launch Collection</span>
           </div>
           <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white/90 leading-tight mb-2">
             Dress For The
@@ -315,9 +331,12 @@ export default function ProductGallery() {
 
       {/* Empty state */}
       {displayed.length === 0 && (
-        <div className="text-center py-20 text-white/30">
-          <p className="font-serif text-xl mb-2">No pieces found.</p>
-          <button onClick={() => handleVibeToggle('all')} className="text-[#b76e79] text-sm hover:underline">View all →</button>
+        <div className="text-center py-20">
+          <div className="glass-premium rounded-3xl border border-purple-500/15 p-10 max-w-md mx-auto">
+            <ShoppingBag className="w-10 h-10 text-purple-400/40 mx-auto mb-4" />
+            <p className="font-serif text-xl text-white/50 mb-2">No products yet</p>
+            <p className="text-[13px] text-white/30 leading-relaxed">Products will appear here once added through the admin panel.</p>
+          </div>
         </div>
       )}
     </section>

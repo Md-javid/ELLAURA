@@ -12,6 +12,7 @@ import CheckoutPage from './pages/CheckoutPage'
 import OrderSuccessPage from './pages/OrderSuccessPage'
 import AdminPage from './pages/AdminPage'
 import LookbookPage from './pages/LookbookPage'
+import OrdersPage from './pages/OrdersPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 export default function App() {
@@ -19,13 +20,6 @@ export default function App() {
 
   return (
     <div className="neon-bg min-h-screen relative">
-      {/* Ambient desktop glows */}
-      <div className="fixed inset-0 pointer-events-none -z-10">
-        <div className="absolute top-[15%] left-[5%] w-96 h-96 rounded-full bg-[#b76e79]/6 blur-3xl" />
-        <div className="absolute bottom-[20%] right-[5%] w-80 h-80 rounded-full bg-[#6366f1]/6 blur-3xl" />
-        <div className="absolute top-[60%] left-[50%] w-64 h-64 rounded-full bg-[#e8a0a8]/4 blur-3xl" />
-      </div>
-
       <Header />
       <CartSidebar />
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
@@ -38,6 +32,7 @@ export default function App() {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/order-success" element={<OrderSuccessPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
         <Route path="/lookbook" element={<LookbookPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

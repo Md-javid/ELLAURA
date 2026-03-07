@@ -162,7 +162,7 @@ export const PRODUCTS = [
 export const getProductById = (id) => PRODUCTS.find(p => p.id === id) || null
 
 // Returns admin-managed products from localStorage if available,
-// otherwise returns the default launch collection.
+// otherwise returns empty (clean start — products added via admin only).
 // Used by ProductGallery, SearchModal etc. to reflect admin changes.
 export const getLiveProducts = () => {
   try {
@@ -172,7 +172,7 @@ export const getLiveProducts = () => {
       return saved.filter(p => p.active !== false) // hide products toggled off
     }
   } catch {}
-  return PRODUCTS
+  return []
 }
 
 // Returns products recently added by admin (badge === 'New' or added within last 7 days)

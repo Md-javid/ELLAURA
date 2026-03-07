@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, useEffect, useState } from 'react'
-import { supabase, DEMO_MODE } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 
 // ── Cart Context ───────────────────────────────────────────────
 
@@ -77,18 +77,6 @@ export function AppProvider({ children }) {
   const [toastTimer, setToastTimer] = useState(null)
   const [productModal, setProductModal] = useState(null) // product object or null
 
-  // Theme: 'dark' | 'light'
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('ellaura_theme') || 'dark' } catch { return 'dark' }
-  })
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('light', theme === 'light')
-    try { localStorage.setItem('ellaura_theme', theme) } catch { }
-  }, [theme])
-
-  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
-
   // Hydrate cart from localStorage
   useEffect(() => {
     try {
@@ -113,15 +101,16 @@ export function AppProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
-    // In demo mode, listen for custom auth events dispatched by supabase.js helpers
+    // Listen for custom auth events dispatched by supabase.js helpers
+    // (fires in demo mode AND when runtime fallback to local auth occurs)
     const onDemoAuth = (e) => {
       setUser(e.detail ?? null)
       setAuthLoading(false)
     }
-    if (DEMO_MODE) window.addEventListener('ellaura_auth_change', onDemoAuth)
+    window.addEventListener('ellaura_auth_change', onDemoAuth)
     return () => {
       subscription.unsubscribe()
-      if (DEMO_MODE) window.removeEventListener('ellaura_auth_change', onDemoAuth)
+      window.removeEventListener('ellaura_auth_change', onDemoAuth)
     }
   }, [])
 
@@ -162,7 +151,6 @@ export function AppProvider({ children }) {
         <UIContext.Provider value={{
           searchOpen, setSearchOpen,
           toast, showToast,
-          theme, toggleTheme,
           productModal, setProductModal,
         }}>
           {children}

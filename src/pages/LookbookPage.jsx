@@ -1,18 +1,17 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ShoppingBag, Heart } from 'lucide-react'
-import { PRODUCTS } from '../lib/products'
+import { ArrowLeft, ShoppingBag, Heart, Sparkles } from 'lucide-react'
+import { getLiveProducts } from '../lib/products'
 import { useUI, useCart } from '../context/AppContext'
 
-// Editorial looks — each pairing 1–2 products with a story
-const LOOKS = [
+// Editorial look templates — paired with products dynamically
+const LOOK_TEMPLATES = [
   {
     id: 1,
     title: 'The Night Belongs to You',
     subtitle: 'ELLAURA AUTUMN / WINTER 2026',
     description: 'Step into rooms and silence them. A velvet silhouette designed for women who don\'t ask for attention — they command it.',
     mood: 'Dark Romantique',
-    product: PRODUCTS[0],
     layout: 'hero',
     accentColor: 'from-[#b76e79] to-[#8b4f5a]',
     bgGradient: 'from-[#1a0e0f] via-[#2a1520] to-[#0d0d0f]',
@@ -23,7 +22,6 @@ const LOOKS = [
     subtitle: 'THE FESTIVE EDIT',
     description: 'Silk so fine it catches every candle. Worn to the celebrations that matter — and the quiet ones only you know about.',
     mood: 'Luxe Festive',
-    product: PRODUCTS[1],
     layout: 'side',
     accentColor: 'from-[#c9a227] to-[#8b7220]',
     bgGradient: 'from-[#15110a] via-[#1e1508] to-[#0d0d0f]',
@@ -32,9 +30,8 @@ const LOOKS = [
     id: 3,
     title: 'Made for the City After Dark',
     subtitle: 'URBAN NIGHTS',
-    description: 'Sequins that remember every beat. From Bandra cafés to rooftop parties — this is your going-out armour.',
+    description: 'Sequins that remember every beat. From Bandra cafes to rooftop parties — this is your going-out armour.',
     mood: 'Urban Glam',
-    product: PRODUCTS[2],
     layout: 'split',
     accentColor: 'from-[#6366f1] to-[#4338ca]',
     bgGradient: 'from-[#080816] via-[#0d0d20] to-[#0d0d0f]',
@@ -45,7 +42,6 @@ const LOOKS = [
     subtitle: 'THE POWER DRESSING EDIT',
     description: 'Tailored to command. Soft enough to feel like a second skin, structured enough that every room knows exactly who walked in.',
     mood: 'Power Dressing',
-    product: PRODUCTS[3],
     layout: 'side-reverse',
     accentColor: 'from-[#475569] to-[#1e293b]',
     bgGradient: 'from-[#0a0c0e] via-[#111318] to-[#0d0d0f]',
@@ -56,7 +52,6 @@ const LOOKS = [
     subtitle: 'THE BRIDAL EDIT',
     description: 'Because the real statement is the one that\'s entirely yours. Blush, ivory, gold — in a cut that starts conversations.',
     mood: 'New Bride',
-    product: PRODUCTS[4],
     layout: 'hero',
     accentColor: 'from-[#e8a0a8] to-[#b76e79]',
     bgGradient: 'from-[#1a0e12] via-[#250d16] to-[#0d0d0f]',
@@ -159,20 +154,26 @@ export default function LookbookPage() {
     setProductModal(product)
   }
 
+  // Build looks dynamically from admin-managed products
+  const liveProducts = getLiveProducts()
+  const LOOKS = LOOK_TEMPLATES
+    .slice(0, liveProducts.length)
+    .map((template, i) => ({ ...template, product: liveProducts[i] }))
+
   return (
-    <div className="min-h-screen" style={{ background: '#0d0d0f' }}>
+    <div className="min-h-screen pt-16" style={{ background: '#0d0d0f' }}>
       {/* Header strip */}
-      <div className="sticky top-0 z-30 glass-dark border-b border-white/5 px-5 py-4">
+      <div className="glass-liquid border-b border-purple-500/10 px-5 py-4">
         <div className="max-w-5xl mx-auto flex items-center gap-4">
           <button
-            onClick={() => navigate(-1)}
-            className="w-9 h-9 rounded-xl glass border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90"
+            onClick={() => navigate('/')}
+            className="w-9 h-9 rounded-xl glass border border-purple-500/15 flex items-center justify-center hover:bg-purple-500/10 transition-all active:scale-90"
           >
             <ArrowLeft className="w-4 h-4 text-white/70" />
           </button>
           <div>
             <h1 className="font-serif text-xl font-bold text-white/90">Lookbook</h1>
-            <p className="text-[10px] text-white/30 tracking-widest uppercase">Autumn / Winter 2026 Editorial</p>
+            <p className="text-[10px] text-purple-400/40 tracking-widest uppercase">Autumn / Winter 2026 Editorial</p>
           </div>
         </div>
       </div>
@@ -180,20 +181,40 @@ export default function LookbookPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {/* Intro */}
         <div className="text-center py-6">
-          <p className="text-[9px] text-[#b76e79]/60 uppercase tracking-[0.25em] mb-3">Ellaura × AW26</p>
+          <p className="text-[9px] text-[#b76e79]/60 uppercase tracking-[0.25em] mb-3">Ellaura x AW26</p>
           <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white/90 mb-3">
             Dressed for the Life You're Already Living
           </h2>
           <p className="text-[14px] text-white/40 max-w-xl mx-auto leading-relaxed">
-            Five wearable stories crafted in Mumbai, tailored to you within 48 hours.
-            Each piece custom stitched, every silhouette a statement.
+            {LOOKS.length > 0
+              ? 'Wearable stories crafted in Mumbai, tailored to you within 48 hours. Each piece custom stitched, every silhouette a statement.'
+              : 'Our editorial collection is being curated. Check back soon for stunning looks.'}
           </p>
         </div>
 
-        {/* Looks */}
-        {LOOKS.map(look => (
-          <LookCard key={look.id} look={look} onShop={handleShop} />
-        ))}
+        {LOOKS.length === 0 ? (
+          /* Empty state */
+          <div className="text-center glass-dark rounded-[32px] border border-white/8 py-20 px-6">
+            <Sparkles className="w-10 h-10 text-white/10 mx-auto mb-4" />
+            <h3 className="font-serif text-2xl font-bold text-white/50 mb-3">Coming Soon</h3>
+            <p className="text-[13px] text-white/25 mb-6 max-w-sm mx-auto">
+              Our curated lookbook will feature handpicked editorial looks once the collection is live.
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="btn-liquid inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-[13px] font-semibold text-white"
+            >
+              Browse Collection
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Looks */}
+            {LOOKS.map(look => (
+              <LookCard key={look.id} look={look} onShop={handleShop} />
+            ))}
+          </>
+        )}
 
         {/* CTA */}
         <div className="text-center glass-dark rounded-[32px] border border-white/8 py-12 px-6">

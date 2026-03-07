@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff, ArrowLeft, Sparkles, User, Mail, Phone, MapPin, Heart, Info } from 'lucide-react'
-import { signIn, signUp, DEMO_MODE } from '../lib/supabase'
+import { signIn, signUp, DEMO_MODE, isSupabaseOffline } from '../lib/supabase'
 import { useAuth, useUI } from '../context/AppContext'
+
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@ellaura.in'
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'Ellaura@2026'
+const ADMIN_SESSION_KEY = 'ellaura_admin_session'
+const ADMIN_ACCOUNTS_KEY = 'ellaura_admin_accounts'
 
 const STYLE_OPTIONS = [
   { key: 'cocktail', label: '🍸 Cocktail & Rooftop', desc: 'Elegant evening wear' },
@@ -43,14 +48,35 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    // ── Admin shortcut: check against local admin credentials ──
+    const accounts = (() => {
+      try {
+        const raw = localStorage.getItem(ADMIN_ACCOUNTS_KEY)
+        return raw ? JSON.parse(raw) : [{ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }]
+      } catch { return [{ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }] }
+    })()
+    const adminMatch = accounts.find(a => a.email === form.email && a.password === form.password)
+    if (adminMatch) {
+      localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now(), email: adminMatch.email }))
+      setLoading(false)
+      navigate('/admin', { replace: true })
+      return
+    }
+
     try {
       await signIn({ email: form.email, password: form.password })
       showToast('Welcome back! 💖', 'success')
       navigate(redirect === 'checkout' ? '/checkout' : '/', { replace: true })
     } catch (err) {
-      setError(err.message.includes('credentials') || err.message.includes('password')
-        ? 'Incorrect email or password. Please try again.'
-        : err.message)
+      const msg = err.message || ''
+      if (msg.toLowerCase().includes('rate limit')) {
+        setError('Rate limit reached. Please wait a few minutes and try again.')
+      } else if (msg.includes('credentials') || msg.includes('password')) {
+        setError('Incorrect email or password. Please try again.')
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
     }
@@ -59,6 +85,7 @@ export default function LoginPage() {
   const handleSignupStep1 = (e) => {
     e.preventDefault()
     if (!form.fullName.trim()) return setError('Please enter your full name.')
+    if (!form.phone.trim() || form.phone.replace(/\D/g, '').length < 10) return setError('Please enter a valid 10-digit mobile number.')
     if (!form.email.trim() || !form.email.includes('@')) return setError('Please enter a valid email.')
     if (form.password.length < 8) return setError('Password must be at least 8 characters.')
     setError('')
@@ -79,16 +106,21 @@ export default function LoginPage() {
         stylePreference: form.stylePreference,
       })
       showToast(
-        DEMO_MODE
-          ? 'Welcome to Ellaura! ✨ (Demo mode — no email required)'
+        (DEMO_MODE || isSupabaseOffline())
+          ? 'Welcome to Ellaura! ✨ (Offline demo — no email required)'
           : 'Welcome to Ellaura! ✨ Please check your email to confirm.',
         'success'
       )
       navigate(redirect === 'checkout' ? '/checkout' : '/', { replace: true })
     } catch (err) {
-      setError(err.message.includes('already registered') || err.message.includes('duplicate')
-        ? 'This email is already registered. Try logging in.'
-        : err.message)
+      const msg = err.message || ''
+      if (msg.toLowerCase().includes('rate limit')) {
+        setError('Rate limit reached. Please wait a few minutes and try again.')
+      } else if (msg.includes('already registered') || msg.includes('duplicate')) {
+        setError('This email is already registered. Try logging in.')
+      } else {
+        setError(msg)
+      }
       setStep(1)
     } finally {
       setLoading(false)
@@ -230,7 +262,16 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Email</label>
+                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Mobile Number *</label>
+                  <div className={wrapClass}>
+                    <Phone className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    <input type="tel" placeholder="+91 XXXXXXXXXX" value={form.phone} onChange={set('phone')} required className={inputClass} />
+                  </div>
+                  <p className="text-[10px] text-white/20 mt-1 ml-1">For order updates &amp; delivery coordination</p>
+                </div>
+
+                <div>
+                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Email *</label>
                   <div className={wrapClass}>
                     <Mail className="w-4 h-4 text-white/30 flex-shrink-0" />
                     <input type="email" placeholder="your@email.com" value={form.email} onChange={set('email')} required className={inputClass} />
@@ -238,7 +279,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Password</label>
+                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Password *</label>
                   <div className={wrapClass}>
                     <input
                       type={showPass ? 'text' : 'password'}
@@ -274,15 +315,6 @@ export default function LoginPage() {
                   <div className="flex-1 h-[1px] bg-[#b76e79]/30" />
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#b76e79] to-[#8b4f5a] flex items-center justify-center text-[11px] font-bold text-white">2</div>
                   <p className="text-[12px] text-white/50">Style Profile</p>
-                </div>
-
-                <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Phone Number</label>
-                  <div className={wrapClass}>
-                    <Phone className="w-4 h-4 text-white/30 flex-shrink-0" />
-                    <input type="tel" placeholder="+91 XXXXXXXXXX" value={form.phone} onChange={set('phone')} className={inputClass} />
-                  </div>
-                  <p className="text-[10px] text-white/20 mt-1 ml-1">For order updates & custom fitting coordination</p>
                 </div>
 
                 <div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { ShoppingBag, Search, User, X, Menu, LogOut, ChevronDown, Sun, Moon } from 'lucide-react'
+import { ShoppingBag, Search, User, X, Menu, LogOut, ChevronDown, Package, Settings } from 'lucide-react'
 import { useCart, useUI, useAuth } from '../context/AppContext'
 import { signOut } from '../lib/supabase'
 
@@ -15,8 +15,9 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [activeNav, setActiveNav] = useState(null)
   const { cartCount, setCartOpen } = useCart()
-  const { setSearchOpen, theme, toggleTheme } = useUI()
+  const { setSearchOpen } = useUI()
   const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -36,8 +37,17 @@ export default function Header() {
   const handleNavClick = (href) => {
     setMenuOpen(false)
     if (href.startsWith('#')) {
-      const el = document.getElementById(href.slice(1))
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      if (location.pathname !== '/') {
+        navigate('/')
+        // Wait for navigation then scroll
+        setTimeout(() => {
+          const el = document.getElementById(href.slice(1))
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 300)
+      } else {
+        const el = document.getElementById(href.slice(1))
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
     } else {
       navigate(href)
     }
@@ -54,11 +64,11 @@ export default function Header() {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
           scrolled
-            ? 'backdrop-blur-2xl bg-black/65 border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.5)]'
+            ? 'backdrop-blur-2xl bg-black/65 border-b border-purple-500/15 shadow-[0_4px_30px_rgba(139,92,246,0.1)]'
             : 'backdrop-blur-xl bg-black/30 border-b border-white/5'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 grid grid-cols-[40px_1fr_auto] lg:flex lg:justify-between items-center gap-2 lg:gap-4">
           {/* ── Mobile hamburger ── */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
@@ -73,7 +83,7 @@ export default function Header() {
           </button>
 
           {/* ── Brand ── */}
-          <Link to="/" className="flex flex-col items-center flex-shrink-0">
+          <Link to="/" className="flex flex-col items-center justify-self-center lg:justify-self-auto flex-shrink-0">
             <span className="font-serif text-xl sm:text-2xl font-bold tracking-widest text-rose-gold leading-none">
               ELLAURA
             </span>
@@ -87,10 +97,17 @@ export default function Header() {
             {NAV_LINKS.map(link => (
               <button
                 key={link.label}
-                onClick={() => handleNavClick(link.href)}
-                className="px-4 py-2 rounded-xl text-[13px] font-medium text-white/60 hover:text-white hover:bg-white/8 transition-all duration-300 tracking-wide"
+                onClick={() => { setActiveNav(link.label); handleNavClick(link.href) }}
+                className={`relative px-4 py-2 rounded-xl text-[13px] font-medium tracking-wide transition-all duration-300 ${
+                  activeNav === link.label
+                    ? 'text-white bg-purple-500/15 border border-purple-500/25 shadow-[0_0_15px_rgba(139,92,246,0.15)]'
+                    : 'text-white/60 hover:text-white hover:bg-white/8'
+                }`}
               >
                 {link.label}
+                {activeNav === link.label && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-[2px] bg-gradient-to-r from-purple-400 to-[#b76e79] rounded-full" />
+                )}
               </button>
             ))}
           </nav>
@@ -117,17 +134,33 @@ export default function Header() {
                   <User className="w-4 h-4 text-white/70" />
                 </button>
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-12 w-48 glass-dark rounded-2xl border border-white/10 shadow-2xl py-2 animate-slideDown">
+                  <div className="absolute right-0 top-12 w-56 rounded-2xl border border-white/10 shadow-2xl py-2 animate-slideDown" style={{background:'rgba(8,6,14,0.95)', backdropFilter:'blur(28px)', WebkitBackdropFilter:'blur(28px)'}}>
                     <div className="px-4 py-2 border-b border-white/8 mb-1">
                       <p className="text-[11px] text-white/40 truncate">{user.email}</p>
                     </div>
                     <button
-                      onClick={handleSignOut}
+                      onClick={() => { setUserMenuOpen(false); navigate('/orders') }}
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200"
                     >
-                      <LogOut className="w-3.5 h-3.5" />
-                      Sign Out
+                      <Package className="w-3.5 h-3.5" />
+                      My Orders
                     </button>
+                    <button
+                      onClick={() => { setUserMenuOpen(false); navigate('/orders?tab=account') }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      Account
+                    </button>
+                    <div className="border-t border-white/5 mt-1 pt-1">
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-red-400/60 hover:text-red-400 hover:bg-red-400/5 transition-all duration-200"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Sign Out
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -140,17 +173,6 @@ export default function Header() {
                 Login
               </Link>
             )}
-
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="w-10 h-10 rounded-2xl glass flex items-center justify-center transition-all duration-300 hover:bg-white/10 active:scale-95"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark'
-                ? <Sun className="w-4 h-4 text-white/70" />
-                : <Moon className="w-4 h-4 text-white/70" />}
-            </button>
 
             {/* Cart */}
             <button
@@ -179,19 +201,36 @@ export default function Header() {
             {NAV_LINKS.map(link => (
               <button
                 key={link.label}
-                onClick={() => handleNavClick(link.href)}
-                className="text-left py-3 px-3 rounded-2xl text-white/80 font-medium text-[15px] tracking-wide hover:bg-white/5 hover:text-white transition-all duration-300"
+                onClick={() => { setActiveNav(link.label); handleNavClick(link.href) }}
+                className={`text-left py-3 px-3 rounded-2xl font-medium text-[15px] tracking-wide transition-all duration-300 ${
+                  activeNav === link.label
+                    ? 'text-white bg-purple-500/15 border border-purple-500/20'
+                    : 'text-white/80 hover:bg-white/5 hover:text-white'
+                }`}
               >
                 {link.label}
               </button>
             ))}
           </nav>
-          <div className="mt-auto">
+          <div className="mt-auto space-y-1">
             {user ? (
-              <button onClick={handleSignOut} className="w-full flex items-center gap-2 py-3 px-3 rounded-2xl text-white/60 hover:text-white hover:bg-white/5 transition-all duration-300">
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
+              <>
+                <div className="px-3 py-2 mb-2 border-b border-white/5">
+                  <p className="text-[10px] text-white/25 truncate">{user.email}</p>
+                </div>
+                <button onClick={() => { setMenuOpen(false); navigate('/orders') }} className="w-full flex items-center gap-2 py-3 px-3 rounded-2xl text-white/60 hover:text-white hover:bg-white/5 transition-all duration-300">
+                  <Package className="w-4 h-4" />
+                  My Orders
+                </button>
+                <button onClick={() => { setMenuOpen(false); navigate('/orders?tab=account') }} className="w-full flex items-center gap-2 py-3 px-3 rounded-2xl text-white/60 hover:text-white hover:bg-white/5 transition-all duration-300">
+                  <Settings className="w-4 h-4" />
+                  Account
+                </button>
+                <button onClick={handleSignOut} className="w-full flex items-center gap-2 py-3 px-3 rounded-2xl text-red-400/60 hover:text-red-400 hover:bg-red-400/5 transition-all duration-300">
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </>
             ) : (
               <Link to="/login" onClick={() => setMenuOpen(false)} className="w-full btn-liquid rounded-2xl py-3 text-center text-sm font-medium text-white block">
                 Login / Sign Up

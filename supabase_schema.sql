@@ -71,6 +71,36 @@ create table if not exists cart_items (
   unique (user_id, product_id, size)
 );
 
+-- ── 3b. Saved Addresses ───────────────────────────────────────
+-- Customers can save shipping addresses for faster repeat checkout.
+create table if not exists addresses (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references profiles(id) on delete cascade,
+  name        text,
+  phone       text,
+  email       text,
+  line1       text not null,
+  line2       text,
+  city        text not null,
+  state       text not null,
+  pincode     text not null,
+  is_default  boolean not null default false,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
+);
+
+create index if not exists addresses_user_idx on addresses(user_id);
+
+alter table addresses enable row level security;
+drop policy if exists "Users can manage own addresses" on addresses;
+create policy "Users can manage own addresses"
+  on addresses for all using (auth.uid() = user_id);
+
+drop trigger if exists addresses_updated_at on addresses;
+create trigger addresses_updated_at
+  before update on addresses
+  for each row execute procedure handle_updated_at();
+
 -- ── 4. Products ──────────────────────────────────────────────
 -- Admin-managed product catalogue stored in the database.
 -- Anonymous users can read; only service role / authenticated admins can write.
@@ -87,6 +117,7 @@ create table if not exists products (
   rating        numeric(3,1) default 4.9,
   reviews       integer default 0,
   img           text not null,
+  images        jsonb not null default '[]',   -- additional gallery images
   img_alt       text,
   description   text,
   material      text,                          -- fabric/material info
@@ -100,6 +131,20 @@ create table if not exists products (
   created_at    timestamptz default now(),
   updated_at    timestamptz default now()
 );
+
+alter table products
+  add column if not exists images jsonb not null default '[]';
+
+-- Make subtotal optional (default 0) so existing inserts without it still work
+alter table orders alter column subtotal set default 0;
+
+-- Atomic stock decrement function (prevents negative stock)
+create or replace function decrement_stock(product_id text, amount integer)
+returns void as $$
+  update products
+     set stock = greatest(0, stock - amount)
+   where id = product_id;
+$$ language sql security definer;
 
 drop trigger if exists products_updated_at on products;
 create trigger products_updated_at
@@ -135,14 +180,15 @@ drop policy if exists "Users can manage own cart" on cart_items;
 create policy "Users can manage own cart"
   on cart_items for all using (auth.uid() = user_id);
 
--- Products: publicly readable, only service-role can write
+-- Products: publicly readable and writable (admin UI is protected by PIN/password in the app)
 alter table products enable row level security;
 drop policy if exists "Products are publicly readable" on products;
 create policy "Products are publicly readable"
   on products for select using (true);
 drop policy if exists "Only service role can modify products" on products;
-create policy "Only service role can modify products"
-  on products for all using (auth.role() = 'service_role');
+drop policy if exists "Anon can modify products" on products;
+create policy "Anon can modify products"
+  on products for all using (true) with check (true);
 
 -- ── 5. Reviews ──────────────────────────────────────────────
 create table if not exists reviews (
@@ -203,6 +249,7 @@ select
   p.full_name,
   p.phone,
   o.items,
+  o.subtotal,
   o.total,
   o.status,
   o.shipping_address,
