@@ -237,28 +237,37 @@ export default function CheckoutPage() {
                   <p className="text-[12px] text-white/30 mb-4">Where should we send your order?</p>
 
                   {/* Saved address picker */}
-                  {savedAddresses.length > 0 && (
-                    <div className="mb-4">
-                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Use a Saved Address</label>
-                      <div className="relative">
-                        <select
-                          onChange={e => {
-                            const a = savedAddresses[parseInt(e.target.value)]
-                            if (!a) return
-                            setShipping(s => ({ ...s, name: a.name || s.name, phone: a.phone || s.phone, email: a.email || s.email, line1: a.line1 || '', line2: a.line2 || '', city: a.city || '', state: a.state || '', pincode: a.pincode || '' }))
-                          }}
-                          className="w-full glass rounded-2xl border border-white/10 px-4 py-3 text-[13px] text-white bg-transparent appearance-none pr-10 focus:border-[#b76e79]/40 transition-all outline-none"
-                        >
-                          <option value="" className="bg-[#1a1a1e]">— select a saved address —</option>
-                          {savedAddresses.map((a, i) => (
-                            <option key={a.id} value={i} className="bg-[#1a1a1e]">
-                              {a.line1}, {a.city} — {a.pincode}
-                            </option>
+                  {user?.id && (
+                    <div className="mb-5">
+                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Saved Addresses</label>
+                      {savedAddresses.length === 0 ? (
+                        <div className="glass rounded-2xl border border-white/8 px-4 py-3 flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-white/20 flex-shrink-0" />
+                          <p className="text-[11px] text-white/25">No saved addresses yet — your address will be saved after your first order.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {savedAddresses.map((a) => (
+                            <div
+                              key={a.id}
+                              onClick={() => setShipping(s => ({ ...s, name: a.name || s.name, phone: a.phone || s.phone, email: a.email || s.email, line1: a.line1 || '', line2: a.line2 || '', city: a.city || '', state: a.state || '', pincode: a.pincode || '' }))}
+                              className={`cursor-pointer glass rounded-2xl border px-4 py-3 flex items-start gap-3 transition-all hover:border-[#b76e79]/40 ${
+                                shipping.line1 === a.line1 && shipping.pincode === a.pincode
+                                  ? 'border-[#b76e79]/50 shadow-sm shadow-[#b76e79]/10'
+                                  : 'border-white/10'
+                              }`}
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-[#b76e79] mt-0.5 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-medium text-white/80 truncate">{a.name || shipping.name} · {a.phone || shipping.phone}</p>
+                                <p className="text-[11px] text-white/40 truncate mt-0.5">{a.line1}{a.line2 ? `, ${a.line2}` : ''}, {a.city}, {a.state} — {a.pincode}</p>
+                              </div>
+                              {a.is_default && <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#b76e79]/15 text-[#b76e79] border border-[#b76e79]/20 flex-shrink-0">Default</span>}
+                            </div>
                           ))}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
-                      </div>
-                      <p className="text-[10px] text-white/20 mt-1 ml-1">Or fill in a new address below</p>
+                          <p className="text-[10px] text-white/20 mt-1 ml-1">Click a saved address to fill the form, or type a new one below</p>
+                        </div>
+                      )}
                     </div>
                   )}
 

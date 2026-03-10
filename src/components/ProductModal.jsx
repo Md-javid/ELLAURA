@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   X, ChevronLeft, ChevronRight, Star, ShoppingBag, Heart,
   Clock, Package, Truck, RotateCcw, Info, ChevronDown, ChevronUp,
-  Send, User as UserIcon, RotateCw, Shirt, Palette,
+  Send, User as UserIcon, RotateCw, Shirt, Palette, Ruler,
 } from 'lucide-react'
 import { useCart, useUI, useAuth } from '../context/AppContext'
 import { SIZE_CHART, COLOR_SWATCHES } from '../lib/products'
@@ -532,6 +532,13 @@ export default function ProductModal() {
   if (!product) return null
 
   const handleAddToCart = () => {
+    if (selectedSize === 'Custom') {
+      const { bust, waist, hips } = selectedMeasurements || {}
+      if (!bust?.trim() || !waist?.trim() || !hips?.trim()) {
+        showToast('Please enter Bust, Waist & Hips measurements for Custom Fit', 'error')
+        return
+      }
+    }
     addToCart(product, selectedSize, selectedMeasurements)
     setAdded(true)
     setTimeout(() => setAdded(false), 2500)
