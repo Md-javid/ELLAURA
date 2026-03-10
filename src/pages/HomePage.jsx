@@ -52,7 +52,7 @@ function NewArrivalsPopup() {
 
   return (
     <div className="fixed bottom-6 right-6 z-[55] max-w-xs w-full animate-slideUp">
-      <div className="glass-liquid rounded-2xl border border-purple-500/20 shadow-2xl overflow-hidden">
+      <div className="glass-dark rounded-2xl border border-purple-500/20 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-purple-500/10 bg-gradient-to-r from-purple-600/20 to-[#b76e79]/10">
           <div className="flex items-center gap-2">

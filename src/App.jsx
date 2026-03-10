@@ -21,7 +21,7 @@ import NotFoundPage from './pages/NotFoundPage'
 //   npm run coming-soon:on   → show Coming Soon page to visitors
 //   npm run coming-soon:off  → go live (disable Coming Soon gate)
 // Then redeploy / restart dev server for changes to take effect.
-const COMING_SOON = true
+const COMING_SOON = false
 
 export default function App() {
   const { searchOpen, setSearchOpen, toast } = useUI()

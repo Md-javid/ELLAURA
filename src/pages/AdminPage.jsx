@@ -83,7 +83,7 @@ function AdminLogin({ onVerify }) {
       const match = accounts.find(a => a.email === email && a.password === password)
       if (match) {
         const session = { ts: Date.now(), email: match.email }
-        localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
+        sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
         onVerify()
       } else {
         setError('Invalid email or password.')
@@ -103,7 +103,7 @@ function AdminLogin({ onVerify }) {
       const pin = next.join('')
       if (pin === ADMIN_PIN) {
         const session = { ts: Date.now(), method: 'pin' }
-        localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
+        sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
         onVerify()
       } else {
         setError('Incorrect PIN. Try again.')
@@ -264,7 +264,7 @@ function ChangeCredentialsModal({ currentEmail, onClose, onChanged }) {
       a.email === currentEmail ? { email: email.trim(), password: newPass } : a
     )
     saveAdminAccounts(updated)
-    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now(), email: email.trim() }))
+    sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now(), email: email.trim() }))
     setSaved(true)
     setTimeout(() => { onChanged(email.trim()); onClose() }, 1200)
   }
@@ -753,7 +753,7 @@ export default function AdminPage() {
   // Check session on mount
   useEffect(() => {
     try {
-      const s = JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY) || 'null')
+      const s = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || 'null')
       if (s && Date.now() - s.ts < SESSION_TTL) {
         setAuthed(true)
         setAdminEmail(s.email || 'PIN Login')
@@ -783,14 +783,14 @@ export default function AdminPage() {
 
   const handleAuth = () => {
     try {
-      const s = JSON.parse(localStorage.getItem(ADMIN_SESSION_KEY) || '{}')
+      const s = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || '{}')
       setAdminEmail(s.email || 'PIN Login')
     } catch { }
     setAuthed(true)
   }
 
   const handleLogout = () => {
-    localStorage.removeItem(ADMIN_SESSION_KEY)
+    sessionStorage.removeItem(ADMIN_SESSION_KEY)
     setAuthed(false)
     setAdminEmail('')
   }

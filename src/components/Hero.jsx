@@ -79,10 +79,10 @@ export default function Hero() {
           <div className={`transition-all duration-700 ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             {/* Headline */}
             <h1 className="font-serif leading-[1.08] mb-6 pb-1">
-              <span className="block text-[clamp(3rem,8vw,5.5rem)] font-bold text-sandal">
+              <span className="block text-[clamp(3rem,8vw,5.5rem)] font-bold text-rose-gold">
                 Own The
               </span>
-              <span className="block text-[clamp(3rem,8vw,5.5rem)] font-bold text-sandal pb-2">
+              <span className="block text-[clamp(3rem,8vw,5.5rem)] font-bold text-rose-gold pb-2">
                 Night.
               </span>
               <span className="block text-[clamp(1.3rem,3vw,1.8rem)] font-light font-sans text-white/85 mt-4 tracking-wide">

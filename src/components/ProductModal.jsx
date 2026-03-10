@@ -7,9 +7,20 @@ import {
 import { useCart, useUI, useAuth } from '../context/AppContext'
 import { SIZE_CHART, COLOR_SWATCHES } from '../lib/products'
 
-// ── Sizes with chart popup ─────────────────────────────────────
-function SizeGuide({ sizes, selected, onSelect }) {
+// ── Sizes with chart popup + Custom Measurements ─────────────
+function SizeGuide({ sizes, selected, onSelect, measurements, onMeasurementsChange }) {
   const [open, setOpen] = useState(false)
+  const [customOpen, setCustomOpen] = useState(selected === 'Custom')
+
+  const handleSizeClick = (s) => {
+    if (s === 'Custom') {
+      setCustomOpen(true)
+      onSelect('Custom')
+    } else {
+      setCustomOpen(false)
+      onSelect(s)
+    }
+  }
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
@@ -28,7 +39,7 @@ function SizeGuide({ sizes, selected, onSelect }) {
         {sizes.map(s => (
           <button
             key={s}
-            onClick={() => onSelect(s)}
+            onClick={() => handleSizeClick(s)}
             className={`min-w-[44px] h-10 rounded-xl text-[12px] font-semibold transition-all duration-200 ${selected === s
                 ? 'bg-gradient-to-br from-[#b76e79] to-[#8b4f5a] text-white shadow-lg shadow-[#b76e79]/30'
                 : 'glass text-white/60 hover:text-white border border-white/10 hover:border-[#b76e79]/30'
@@ -37,7 +48,42 @@ function SizeGuide({ sizes, selected, onSelect }) {
             {s}
           </button>
         ))}
+        {/* Custom Fit button */}
+        <button
+          onClick={() => handleSizeClick('Custom')}
+          className={`h-10 px-3 rounded-xl text-[12px] font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+            selected === 'Custom'
+              ? 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/30'
+              : 'glass text-white/60 hover:text-white border border-white/10 hover:border-purple-500/30'
+          }`}
+        >
+          <Ruler className="w-3 h-3" /> Custom Fit
+        </button>
       </div>
+
+      {/* Custom measurements input */}
+      {selected === 'Custom' && (
+        <div className="glass rounded-2xl border border-purple-500/20 p-4 mt-2 animate-fadeIn">
+          <p className="text-[11px] text-white/40 uppercase tracking-widest mb-3">Enter Your Measurements (cm)</p>
+          <div className="grid grid-cols-3 gap-3">
+            {[{key:'bust',label:'Bust'},{key:'waist',label:'Waist'},{key:'hips',label:'Hips'}].map(({key,label}) => (
+              <div key={key}>
+                <label className="text-[10px] text-white/30 block mb-1">{label}</label>
+                <input
+                  type="number"
+                  min="40"
+                  max="160"
+                  placeholder="cm"
+                  value={measurements?.[key] || ''}
+                  onChange={e => onMeasurementsChange?.({ ...(measurements||{}), [key]: e.target.value })}
+                  className="w-full glass rounded-xl border border-white/10 px-3 py-2 text-[13px] text-white placeholder-white/20 outline-none focus:border-purple-500/40 transition-all"
+                />
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] text-white/20 mt-2">Custom stitched to your exact measurements — no extra charge.</p>
+        </div>
+      )}
 
       {/* Size chart table */}
       {open && (
@@ -283,11 +329,7 @@ function StarInput({ value, onChange }) {
 // ── Reviews Section ────────────────────────────────────────────
 function ReviewsSection({ productId, initialRating, initialCount }) {
   const { user } = useAuth()
-  const [reviews, setReviews] = useState([
-    { id: 1, name: 'Priya M.', rating: 5, text: 'Absolutely stunning! The fit was perfect and arrived in exactly 48 hours. The velvet quality is premium.', date: '12 Feb 2026', verified: true },
-    { id: 2, name: 'Ananya R.', rating: 5, text: 'Wore this to a pub night in Bandra and got so many compliments. The custom stitching is phenomenal!', date: '8 Feb 2026', verified: true },
-    { id: 3, name: 'Shreya K.', rating: 4, text: 'Beautiful dress, sizing is accurate. Would love more color options. Overall very happy!', date: '1 Feb 2026', verified: false },
-  ])
+  const [reviews, setReviews] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [newReview, setNewReview] = useState({ rating: 0, text: '' })
   const [submitting, setSubmitting] = useState(false)
@@ -295,7 +337,7 @@ function ReviewsSection({ productId, initialRating, initialCount }) {
 
   const avgRating = reviews.length
     ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
-    : initialRating
+    : null
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -323,9 +365,15 @@ function ReviewsSection({ productId, initialRating, initialCount }) {
         <div className="flex items-center gap-3">
           <h3 className="font-serif text-base font-semibold text-white/90">Reviews</h3>
           <div className="flex items-center gap-1.5">
-            <Star className="w-4 h-4 fill-[#e8a0a8] text-[#e8a0a8]" />
-            <span className="text-[14px] font-bold text-white/80">{avgRating}</span>
-            <span className="text-[11px] text-white/30">({reviews.length})</span>
+            {avgRating ? (
+              <>
+                <Star className="w-4 h-4 fill-[#e8a0a8] text-[#e8a0a8]" />
+                <span className="text-[14px] font-bold text-white/80">{avgRating}</span>
+                <span className="text-[11px] text-white/30">({reviews.length})</span>
+              </>
+            ) : (
+              <span className="text-[11px] text-white/25">No reviews yet</span>
+            )}
           </div>
         </div>
         <button
@@ -336,8 +384,9 @@ function ReviewsSection({ productId, initialRating, initialCount }) {
         </button>
       </div>
 
-      {/* Rating distribution */}
-      <div className="glass-dark rounded-2xl border border-white/8 p-4 mb-4">
+      {/* Rating distribution (only when reviews exist) */}
+      {reviews.length > 0 && (
+        <div className="glass-dark rounded-2xl border border-white/8 p-4 mb-4">
         <div className="flex items-center gap-6">
           <div className="text-center">
             <p className="font-serif text-4xl font-bold text-white/90">{avgRating}</p>
@@ -368,9 +417,8 @@ function ReviewsSection({ productId, initialRating, initialCount }) {
             })}
           </div>
         </div>
-      </div>
-
-      {/* Write review form */}
+        </div>
+      )}
       {showForm && (
         <form onSubmit={handleSubmit} className="glass-dark rounded-2xl border border-[#b76e79]/20 p-4 mb-4 animate-fadeIn">
           <p className="text-[12px] text-white/60 mb-3 font-medium">Share your experience</p>
@@ -447,6 +495,7 @@ export default function ProductModal() {
   const { addToCart } = useCart()
   const [selectedSize, setSelectedSize] = useState('M')
   const [selectedColor, setSelectedColor] = useState(null)
+  const [selectedMeasurements, setSelectedMeasurements] = useState(null)
   const [liked, setLiked] = useState(false)
   const [added, setAdded] = useState(false)
   const [show360, setShow360] = useState(false)
@@ -457,6 +506,7 @@ export default function ProductModal() {
     if (product) {
       setSelectedSize(product.sizes?.[2] || product.sizes?.[1] || 'M')
       setSelectedColor(product.colors?.[0] || null)
+      setSelectedMeasurements(null)
       setAdded(false)
       setShow360(false)
     }
@@ -482,7 +532,7 @@ export default function ProductModal() {
   if (!product) return null
 
   const handleAddToCart = () => {
-    addToCart(product, selectedSize)
+    addToCart(product, selectedSize, selectedMeasurements)
     setAdded(true)
     setTimeout(() => setAdded(false), 2500)
   }
@@ -613,7 +663,13 @@ export default function ProductModal() {
             </div>
 
             {/* Size guide */}
-            <SizeGuide sizes={product.sizes || ['XS', 'S', 'M', 'L', 'XL']} selected={selectedSize} onSelect={setSelectedSize} />
+            <SizeGuide
+              sizes={product.sizes || ['XS', 'S', 'M', 'L', 'XL']}
+              selected={selectedSize}
+              onSelect={(s) => { setSelectedSize(s); if (s !== 'Custom') setSelectedMeasurements(null) }}
+              measurements={selectedMeasurements}
+              onMeasurementsChange={setSelectedMeasurements}
+            />
 
             {/* CTA */}
             <div className="flex gap-3">

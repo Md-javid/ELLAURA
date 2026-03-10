@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, ShoppingBag, MapPin, Phone, User, Mail, Lock, CheckCircle, Tag, X as XIcon, Package, ChevronDown } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, MapPin, Phone, User, Mail, Lock, CheckCircle, Tag, X as XIcon, Package, ChevronDown, CreditCard, Wallet } from 'lucide-react'
 import { useCart, useAuth, useUI } from '../context/AppContext'
 import { createOrder, decrementProductStock, getSavedAddresses, saveAddress, sendWhatsAppOrderNotification } from '../lib/supabase'
 import { checkPincodeServiceability, buildShiprocketOrderPayload } from '../lib/shiprocket'
+import { openRazorpayCheckout } from '../lib/razorpay'
 
 // ── Coupon definitions ─────────────────────────────────────────
 const COUPONS = {
@@ -29,6 +30,7 @@ export default function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState([])
   const [saveAddrChecked, setSaveAddrChecked] = useState(true)
   const [serviceability, setServiceability] = useState({ checked: false, available: true, estimatedDays: null, courierName: null })
+  const [paymentMethod, setPaymentMethod] = useState('cod') // 'cod' | 'online'
 
   const discountAmount = appliedCoupon
     ? appliedCoupon.type === 'percent'
@@ -125,7 +127,7 @@ export default function CheckoutPage() {
 
       await Promise.all(items.map(i => decrementProductStock(i.product.id, i.qty)))
 
-      if (saveAddrChecked && user?.id) saveAddress(user.id, shipping)
+      if (saveAddrChecked && user?.id) await saveAddress(user.id, shipping)
 
       sendWhatsAppOrderNotification({ orderId: order.id || orderId, items: orderItems, total: finalTotal, shipping })
 
@@ -138,6 +140,54 @@ export default function CheckoutPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleOnlinePayment = async () => {
+    setError('')
+    setLoading(true)
+    setStep('processing')
+    const orderId = `ELLAURA_${Date.now()}`
+    const orderItems = items.map(i => ({
+      product: { id: i.product.id, name: i.product.name, price: i.product.price, img: i.product.img },
+      qty: i.qty,
+      size: i.size,
+    }))
+    const onSuccess = async (paymentResponse) => {
+      try {
+        const order = await createOrder({
+          userId: user?.id || null,
+          items: orderItems,
+          subtotal: cartTotal,
+          total: finalTotal,
+          shippingAddress: shipping,
+          stripePaymentIntentId: paymentResponse.razorpay_payment_id || paymentResponse.paymentId || orderId,
+        }).catch(() => ({ id: orderId }))
+        await Promise.all(items.map(i => decrementProductStock(i.product.id, i.qty)))
+        if (saveAddrChecked && user?.id) await saveAddress(user.id, shipping)
+        sendWhatsAppOrderNotification({ orderId: order.id || orderId, items: orderItems, total: finalTotal, shipping })
+        clearCart()
+        showToast('Payment received! Order confirmed 🎉', 'success')
+        navigate('/order-success', { state: { orderId: order.id || orderId, shipping, total: finalTotal } })
+      } catch (err) {
+        setError(err.message || 'Order creation failed. Contact support.')
+        setStep('payment')
+        setLoading(false)
+      }
+    }
+    const onFailure = (err) => {
+      setError(err?.message || 'Payment failed. Please try again.')
+      setStep('payment')
+      setLoading(false)
+    }
+    await openRazorpayCheckout({
+      orderId,
+      amount: finalTotal,
+      name: shipping.name,
+      email: shipping.email,
+      phone: shipping.phone,
+      onSuccess,
+      onFailure,
+    })
   }
 
   const inputClass = "w-full bg-transparent text-white placeholder-white/25 outline-none text-[14px] py-3"
@@ -317,38 +367,85 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  {/* Cash on Delivery option */}
-                  <div className="glass-premium rounded-2xl border border-emerald-500/20 p-5">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center shadow-lg">
-                        <Package className="w-6 h-6 text-white" />
+                  {/* Payment method selector */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block">Select Payment Method</label>
+
+                    {/* COD option */}
+                    <div
+                      onClick={() => setPaymentMethod('cod')}
+                      className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+                        paymentMethod === 'cod'
+                          ? 'glass-premium border-emerald-500/40 shadow-lg shadow-emerald-500/10'
+                          : 'glass border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                          paymentMethod === 'cod' ? 'bg-gradient-to-br from-emerald-600 to-emerald-800' : 'bg-white/5'
+                        }`}>
+                          <Package className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-white/90 text-[14px]">Cash on Delivery</p>
+                          <p className="text-[11px] text-white/40">Pay when your order arrives</p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          paymentMethod === 'cod' ? 'border-emerald-400' : 'border-white/20'
+                        }`}>
+                          {paymentMethod === 'cod' && <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-white/90 text-[15px]">Cash on Delivery</p>
-                        <p className="text-[11px] text-white/40">Pay {formatPrice(finalTotal)} when your order arrives</p>
-                      </div>
-                      <CheckCircle className="w-5 h-5 text-emerald-400 ml-auto" />
                     </div>
-                    <p className="text-[11px] text-white/30">
-                      No advance payment needed. Keep the exact amount ready at delivery. Shipped via Shiprocket.
-                    </p>
+
+                    {/* Online payment option */}
+                    <div
+                      onClick={() => setPaymentMethod('online')}
+                      className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+                        paymentMethod === 'online'
+                          ? 'glass-premium border-[#b76e79]/40 shadow-lg shadow-[#b76e79]/10'
+                          : 'glass border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                          paymentMethod === 'online' ? 'bg-gradient-to-br from-[#b76e79] to-purple-700' : 'bg-white/5'
+                        }`}>
+                          <CreditCard className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-white/90 text-[14px]">Pay Online</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {['UPI', 'Cards', 'Net Banking', 'Wallets'].map(t => (
+                              <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/40 border border-white/10">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          paymentMethod === 'online' ? 'border-[#b76e79]' : 'border-white/20'
+                        }`}>
+                          {paymentMethod === 'online' && <div className="w-2.5 h-2.5 rounded-full bg-[#b76e79]" />}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {error && <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5">{error}</p>}
 
                 <button
-                  onClick={handleCODOrder}
+                  onClick={paymentMethod === 'online' ? handleOnlinePayment : handleCODOrder}
                   disabled={loading}
                   className="w-full btn-liquid rounded-2xl py-4 text-[15px] font-semibold text-white tracking-wide flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
                 >
-                  <Package className="w-4 h-4" />
-                  {loading ? 'Placing Order…' : `Place Order — Pay ${formatPrice(finalTotal)} on Delivery`}
+                  {paymentMethod === 'online'
+                    ? <><CreditCard className="w-4 h-4" />{loading ? 'Opening Payment…' : `Pay ${formatPrice(finalTotal)} Online`}</>
+                    : <><Package className="w-4 h-4" />{loading ? 'Placing Order…' : `Place Order — Pay ${formatPrice(finalTotal)} on Delivery`}</>}
                 </button>
 
                 <p className="text-center text-[11px] text-white/20 flex items-center justify-center gap-1.5">
-                  <Package className="w-3 h-3" />
-                  Cash on Delivery · Shipped via Shiprocket
+                  <Lock className="w-3 h-3" />
+                  {paymentMethod === 'online' ? 'Secured by Razorpay · SSL Encrypted' : 'Cash on Delivery · Shipped via Shiprocket'}
                 </p>
 
                 <button type="button" onClick={() => setStep('shipping')} className="w-full text-center text-[12px] text-white/25 hover:text-white/50 transition-colors">

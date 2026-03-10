@@ -11,7 +11,9 @@ const UIContext = createContext(null)
 function cartReducer(state, action) {
   switch (action.type) {
     case 'ADD': {
-      const existing = state.items.find(
+      // Custom measurements are never merged — always a new line
+      const isCustom = action.size === 'Custom'
+      const existing = !isCustom && state.items.find(
         i => i.product.id === action.product.id && i.size === action.size
       )
       if (existing) {
@@ -26,7 +28,7 @@ function cartReducer(state, action) {
       }
       return {
         ...state,
-        items: [...state.items, { product: action.product, size: action.size || 'M', qty: 1 }],
+        items: [...state.items, { product: action.product, size: action.size || 'M', qty: 1, measurements: action.measurements || null }],
       }
     }
     case 'REMOVE':
@@ -118,9 +120,10 @@ export function AppProvider({ children }) {
   const cartCount = cart.items.reduce((n, i) => n + i.qty, 0)
   const cartTotal = cart.items.reduce((n, i) => n + i.product.price * i.qty, 0)
 
-  const addToCart = (product, size = 'M') => {
-    dispatch({ type: 'ADD', product, size })
-    showToast(`${product.name} (${size}) added to bag!`, 'success')
+  const addToCart = (product, size = 'M', measurements = null) => {
+    dispatch({ type: 'ADD', product, size, measurements })
+    const label = size === 'Custom' ? 'Custom Fit' : size
+    showToast(`${product.name} (${label}) added to bag!`, 'success')
   }
 
   const removeFromCart = (productId, size) => {
