@@ -570,7 +570,7 @@ export default function CheckoutPage() {
 
                 {/* Trust badges */}
                 <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-                  {['48h Delivery', '7-day Return', 'Custom Fit'].map(t => (
+                  {['Secure Payment', 'Custom Fit', 'Free Shipping'].map(t => (
                     <div key={t} className="glass rounded-xl py-2 px-1 border border-white/8">
                       <p className="text-[9px] text-white/35 leading-tight">{t}</p>
                     </div>
