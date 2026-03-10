@@ -8,7 +8,7 @@ import { useCart, useUI, useAuth } from '../context/AppContext'
 import { SIZE_CHART, COLOR_SWATCHES } from '../lib/products'
 
 // ── Sizes with chart popup + Custom Measurements ─────────────
-function SizeGuide({ sizes, selected, onSelect, measurements, onMeasurementsChange }) {
+function SizeGuide({ sizes, selected, onSelect, measurements, onMeasurementsChange, measureError, setMeasureError }) {
   const [open, setOpen] = useState(false)
   const [customOpen, setCustomOpen] = useState(selected === 'Custom')
 
@@ -63,25 +63,42 @@ function SizeGuide({ sizes, selected, onSelect, measurements, onMeasurementsChan
 
       {/* Custom measurements input */}
       {selected === 'Custom' && (
-        <div className="glass rounded-2xl border border-purple-500/20 p-4 mt-2 animate-fadeIn">
+        <div className={`glass rounded-2xl border p-4 mt-2 animate-fadeIn transition-colors ${
+          measureError ? 'border-red-500/40 bg-red-500/5' : 'border-purple-500/20'
+        }`}>
           <p className="text-[11px] text-white/40 uppercase tracking-widest mb-3">Enter Your Measurements (cm)</p>
           <div className="grid grid-cols-3 gap-3">
-            {[{key:'bust',label:'Bust'},{key:'waist',label:'Waist'},{key:'hips',label:'Hips'}].map(({key,label}) => (
-              <div key={key}>
-                <label className="text-[10px] text-white/30 block mb-1">{label}</label>
-                <input
-                  type="number"
-                  min="40"
-                  max="160"
-                  placeholder="cm"
-                  value={measurements?.[key] || ''}
-                  onChange={e => onMeasurementsChange?.({ ...(measurements||{}), [key]: e.target.value })}
-                  className="w-full glass rounded-xl border border-white/10 px-3 py-2 text-[13px] text-white placeholder-white/20 outline-none focus:border-purple-500/40 transition-all"
-                />
-              </div>
-            ))}
+            {[{key:'bust',label:'Bust'},{key:'waist',label:'Waist'},{key:'hips',label:'Hips'}].map(({key,label}) => {
+              const isEmpty = measureError && !measurements?.[key]?.trim()
+              return (
+                <div key={key}>
+                  <label className={`text-[10px] block mb-1 ${isEmpty ? 'text-red-400' : 'text-white/30'}`}>{label}{isEmpty && ' *'}</label>
+                  <input
+                    type="number"
+                    min="40"
+                    max="160"
+                    placeholder="cm"
+                    value={measurements?.[key] || ''}
+                    onChange={e => {
+                      onMeasurementsChange?.({ ...(measurements||{}), [key]: e.target.value })
+                      if (measureError) setMeasureError(false)
+                    }}                    className={`w-full glass rounded-xl border px-3 py-2 text-[13px] text-white placeholder-white/20 outline-none transition-all ${
+                      isEmpty
+                        ? 'border-red-500/50 focus:border-red-400/70'
+                        : 'border-white/10 focus:border-purple-500/40'
+                    }`}
+                  />
+                </div>
+              )
+            })}
           </div>
-          <p className="text-[10px] text-white/20 mt-2">Custom stitched to your exact measurements — no extra charge.</p>
+          {measureError && (
+            <p className="text-[11px] text-red-400 mt-2.5 flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center text-[9px] flex-shrink-0">!</span>
+              Please fill in all three measurements to continue.
+            </p>
+          )}
+          {!measureError && <p className="text-[10px] text-white/20 mt-2">Custom stitched to your exact measurements — no extra charge.</p>}
         </div>
       )}
 
@@ -496,9 +513,10 @@ export default function ProductModal() {
   const [selectedSize, setSelectedSize] = useState('M')
   const [selectedColor, setSelectedColor] = useState(null)
   const [selectedMeasurements, setSelectedMeasurements] = useState(null)
+  const [measureError, setMeasureError] = useState(false)
   const [liked, setLiked] = useState(false)
   const [added, setAdded] = useState(false)
-  const [show360, setShow360] = useState(false)
+
 
   const product = productModal
 
@@ -508,7 +526,6 @@ export default function ProductModal() {
       setSelectedColor(product.colors?.[0] || null)
       setSelectedMeasurements(null)
       setAdded(false)
-      setShow360(false)
     }
   }, [product])
 
@@ -535,10 +552,11 @@ export default function ProductModal() {
     if (selectedSize === 'Custom') {
       const { bust, waist, hips } = selectedMeasurements || {}
       if (!bust?.trim() || !waist?.trim() || !hips?.trim()) {
-        showToast('Please enter Bust, Waist & Hips measurements for Custom Fit', 'error')
+        setMeasureError(true)
         return
       }
     }
+    setMeasureError(false)
     addToCart(product, selectedSize, selectedMeasurements)
     setAdded(true)
     setTimeout(() => setAdded(false), 2500)
@@ -581,23 +599,7 @@ export default function ProductModal() {
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* Left: Images */}
           <div>
-            {!show360 ? (
-              <ImageCarousel images={images} name={product.name} />
-            ) : (
-              <View360 images={images} name={product.name} />
-            )}
-
-            {/* 360° toggle */}
-            <button
-              onClick={() => setShow360(!show360)}
-              className={`mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-medium transition-all ${show360
-                  ? 'bg-[#b76e79]/20 text-[#e8a0a8] border border-[#b76e79]/30'
-                  : 'glass border border-white/10 text-white/50 hover:text-white/70 hover:border-[#b76e79]/30'
-                }`}
-            >
-              <RotateCw className={`w-3.5 h-3.5 ${show360 ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
-              {show360 ? 'Back to Gallery' : 'View in 360°'}
-            </button>
+            <ImageCarousel images={images} name={product.name} />
           </div>
 
           {/* Right: Details */}
@@ -673,9 +675,11 @@ export default function ProductModal() {
             <SizeGuide
               sizes={product.sizes || ['XS', 'S', 'M', 'L', 'XL']}
               selected={selectedSize}
-              onSelect={(s) => { setSelectedSize(s); if (s !== 'Custom') setSelectedMeasurements(null) }}
+              onSelect={(s) => { setSelectedSize(s); if (s !== 'Custom') { setSelectedMeasurements(null); setMeasureError(false) } }}
               measurements={selectedMeasurements}
               onMeasurementsChange={setSelectedMeasurements}
+              measureError={measureError}
+              setMeasureError={setMeasureError}
             />
 
             {/* CTA */}

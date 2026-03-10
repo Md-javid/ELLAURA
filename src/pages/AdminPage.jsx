@@ -373,6 +373,35 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
   const [uploading, setUploading] = useState(false)
   const [galleryInput, setGalleryInput] = useState(normalizedInitialImages.slice(1).join('\n'))
   const fileInputRef = useRef(null)
+  const galleryFileRef = useRef(null)
+  const [uploadingGallery, setUploadingGallery] = useState(false)
+
+  const handleGalleryFilesUpload = (e) => {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    setUploadingGallery(true)
+    let loaded = 0
+    const dataUrls = []
+    files.forEach(file => {
+      if (!file.type.startsWith('image/')) { loaded++; if (loaded === files.length) finalize(); return }
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        dataUrls.push(ev.target.result)
+        loaded++
+        if (loaded === files.length) finalize()
+      }
+      reader.onerror = () => { loaded++; if (loaded === files.length) finalize() }
+      reader.readAsDataURL(file)
+    })
+    const finalize = () => {
+      setForm(f => {
+        const merged = [...new Set([...( f.images || []), ...dataUrls].filter(Boolean))]
+        return { ...f, images: merged }
+      })
+      setUploadingGallery(false)
+      e.target.value = ''
+    }
+  }
 
   const set = (k) => (e) => {
     const v = e.target.value
@@ -565,18 +594,67 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
         </div>
 
         <div>
-          <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Gallery Image URLs (optional)</label>
+          <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Additional Images</label>
+
+          {/* Multi-file upload button */}
+          <div className="mb-2">
+            <input
+              ref={galleryFileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleGalleryFilesUpload}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => galleryFileRef.current?.click()}
+              disabled={uploadingGallery}
+              className="w-full glass rounded-xl border border-dashed border-white/15 hover:border-[#b76e79]/40 px-4 py-3 text-center transition-all group"
+            >
+              <UploadCloud className={`w-4 h-4 mx-auto mb-1 transition-all ${uploadingGallery ? 'text-[#b76e79] animate-bounce' : 'text-white/25 group-hover:text-[#b76e79]/60'}`} />
+              <p className="text-[11px] text-white/40 group-hover:text-white/60">
+                {uploadingGallery ? 'Uploading...' : 'Upload multiple images'}
+              </p>
+              <p className="text-[10px] text-white/15 mt-0.5">Select several files at once</p>
+            </button>
+          </div>
+
+          {/* URL textarea */}
           <div className={`${wClass} items-start py-2`}>
             <textarea
               value={galleryInput}
               onChange={e => handleGalleryChange(e.target.value)}
-              rows={3}
-              placeholder="One image URL per line (or comma-separated)"
-              className={`${inputClass} resize-y min-h-[78px]`}
+              rows={2}
+              placeholder="Or paste image URLs, one per line"
+              className={`${inputClass} resize-y min-h-[52px]`}
             />
           </div>
-          <p className="text-[10px] text-white/20 mt-1">
-            Total images for this product: {(form.images || []).length}
+
+          {/* Thumbnails of all gallery images (skip primary) */}
+          {(form.images || []).length > 1 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(form.images || []).slice(1).map((url, i) => (
+                <div key={i} className="relative w-14 h-18 rounded-xl overflow-hidden border border-white/10 group">
+                  <img src={url} alt="" className="w-full h-full object-cover object-top" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = (form.images || []).filter((_, idx) => idx !== i + 1)
+                      setForm(f => ({ ...f, images: next }))
+                      setGalleryInput(next.slice(1).filter(u => !u.startsWith('data:')).join('\n'))
+                    }}
+                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="text-[10px] text-white/20 mt-1.5">
+            {(form.images || []).length} image{(form.images || []).length !== 1 ? 's' : ''} total
           </p>
         </div>
       </div>

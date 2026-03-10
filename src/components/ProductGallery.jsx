@@ -117,9 +117,6 @@ function SizePickerModal({ product, onSelect, onClose }) {
 function ProductCard({ product, index }) {
   const [liked, setLiked] = useState(false)
   const [visible, setVisible] = useState(false)
-  const [added, setAdded] = useState(false)
-  const [showSizePicker, setShowSizePicker] = useState(false)
-  const { addToCart } = useCart()
   const { setProductModal } = useUI()
 
   useEffect(() => {
@@ -127,20 +124,7 @@ function ProductCard({ product, index }) {
     return () => clearTimeout(t)
   }, [index])
 
-  const handleAddToCart = () => {
-    setShowSizePicker(true)
-  }
-
-  const handleSizeSelected = (size) => {
-    addToCart(product, size)
-    setShowSizePicker(false)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 2000)
-  }
-
-  const handleCardClick = (e) => {
-    // Don't open modal if clicking buttons
-    if (e.target.closest('button')) return
+  const handleCardClick = () => {
     setProductModal(product)
   }
 
@@ -150,6 +134,7 @@ function ProductCard({ product, index }) {
         className={`group glass-premium rounded-3xl border border-purple-500/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.35)] overflow-hidden transition-all duration-500 cursor-pointer ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
           } hover:-translate-y-2 hover:shadow-[0_20px_60px_rgba(139,92,246,0.15)] hover:border-purple-500/25`}
         onClick={handleCardClick}
+        role="button"
       >
         {/* ── Image ── */}
         <div
@@ -240,29 +225,14 @@ function ProductCard({ product, index }) {
 
           {/* Actions */}
           <button
-            onClick={(e) => { e.stopPropagation(); handleAddToCart() }}
-            className={`w-full py-3 rounded-xl text-[13px] font-medium tracking-wide flex items-center justify-center gap-2 transition-all duration-300 active:scale-[0.98] ${added
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                : 'btn-liquid text-white'
-              }`}
+            onClick={(e) => { e.stopPropagation(); handleCardClick() }}
+            className="w-full py-3 rounded-xl text-[13px] font-medium tracking-wide flex items-center justify-center gap-2 transition-all duration-300 active:scale-[0.98] btn-liquid text-white"
           >
-            {added ? (
-              <><span>✓</span> Added to Bag</>
-            ) : (
-              <><ShoppingBag className="w-4 h-4" /> Add to Bag</>
-            )}
+            <Eye className="w-4 h-4" /> View Product
           </button>
         </div>
       </div>
 
-      {/* Size Picker Modal */}
-      {showSizePicker && (
-        <SizePickerModal
-          product={product}
-          onSelect={handleSizeSelected}
-          onClose={() => setShowSizePicker(false)}
-        />
-      )}
     </>
   )
 }
