@@ -17,7 +17,10 @@ import OrdersPage from './pages/OrdersPage'
 import NotFoundPage from './pages/NotFoundPage'
 
 // ── COMING SOON MODE ──────────────────────────────────────────
-// Set to false (and redeploy) when you're ready to go live!
+// Toggle via npm commands (automatic, no manual edit needed):
+//   npm run coming-soon:on   → show Coming Soon page to visitors
+//   npm run coming-soon:off  → go live (disable Coming Soon gate)
+// Then redeploy / restart dev server for changes to take effect.
 const COMING_SOON = true
 
 export default function App() {

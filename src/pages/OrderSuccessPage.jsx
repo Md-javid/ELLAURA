@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { CheckCircle, ShoppingBag, Package, MapPin, Mail, ArrowRight, Sparkles } from 'lucide-react'
-import { useCart } from '../context/AppContext'
-import { createOrder, decrementProductStock, saveAddress, sendWhatsAppOrderNotification } from '../lib/supabase'
 
 export default function OrderSuccessPage() {
   const { state } = useLocation()
   const navigate = useNavigate()
-  const { clearCart } = useCart()
   const [show, setShow] = useState(false)
   const [orderId, setOrderId] = useState(state?.orderId || `EL-${Date.now().toString().slice(-8)}`)
   const [total, setTotal] = useState(state?.total || 0)
@@ -15,47 +12,6 @@ export default function OrderSuccessPage() {
 
   useEffect(() => {
     const t = setTimeout(() => setShow(true), 100)
-
-    // Handle post-PhonePe-redirect order creation
-    const pending = sessionStorage.getItem('ellaura_pending_order')
-    if (pending) {
-      try {
-        const p = JSON.parse(pending)
-        sessionStorage.removeItem('ellaura_pending_order')
-
-        // Update display state from sessionStorage if not already set via router state
-        if (!state?.orderId) {
-          setOrderId(p.orderId || p.transactionId || orderId)
-          setTotal(p.total || 0)
-          setShipping(p.shipping || {})
-        }
-
-        // Create the order in the database/localStorage
-        createOrder({
-          userId: p.userId || null,
-          items: p.items || [],
-          subtotal: p.subtotal ?? p.total,
-          total: p.total,
-          shippingAddress: p.shipping,
-          stripePaymentIntentId: p.transactionId,
-        }).then(order => {
-          // Decrement stock for each ordered item
-          if (Array.isArray(p.items)) {
-            p.items.forEach(i => {
-              const pid = i.product?.id || i.productId
-              if (pid) decrementProductStock(pid, i.qty || 1)
-            })
-          }
-          // Save address for future orders
-          if (p.userId && p.shipping) saveAddress(p.userId, p.shipping)
-          // Notify via WhatsApp
-          sendWhatsAppOrderNotification({ orderId: order?.id || p.orderId, items: p.items, total: p.total, shipping: p.shipping })
-        }).catch(() => { /* non-critical */ })
-
-        clearCart()
-      } catch { /* corrupted sessionStorage entry — ignore */ }
-    }
-
     return () => clearTimeout(t)
   }, [])
 

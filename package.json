@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "coming-soon": "vite --config vite-cs.config.js --host 0.0.0.0 --port 4000",
+    "coming-soon:on": "node scripts/coming-soon.js on",
+    "coming-soon:off": "node scripts/coming-soon.js off",
     "build": "vite build",
     "preview": "vite preview"
   },

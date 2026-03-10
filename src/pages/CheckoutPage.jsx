@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, ShoppingBag, MapPin, Phone, User, Mail, Lock, CheckCircle, Info, Tag, X as XIcon, Smartphone, Package, ChevronDown } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, MapPin, Phone, User, Mail, Lock, CheckCircle, Tag, X as XIcon, Package, ChevronDown } from 'lucide-react'
 import { useCart, useAuth, useUI } from '../context/AppContext'
 import { createOrder, decrementProductStock, getSavedAddresses, saveAddress, sendWhatsAppOrderNotification } from '../lib/supabase'
-import { openRazorpayCheckout, RAZORPAY_DEMO_MODE } from '../lib/razorpay'
+import { checkPincodeServiceability, buildShiprocketOrderPayload } from '../lib/shiprocket'
 
 // ── Coupon definitions ─────────────────────────────────────────
 const COUPONS = {
@@ -28,6 +28,7 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState('')
   const [savedAddresses, setSavedAddresses] = useState([])
   const [saveAddrChecked, setSaveAddrChecked] = useState(true)
+  const [serviceability, setServiceability] = useState({ checked: false, available: true, estimatedDays: null, courierName: null })
 
   const discountAmount = appliedCoupon
     ? appliedCoupon.type === 'percent'
@@ -85,7 +86,7 @@ export default function CheckoutPage() {
 
   const formatPrice = (p) => `₹${p.toLocaleString('en-IN')}`
 
-  const handleShippingNext = (e) => {
+  const handleShippingNext = async (e) => {
     e.preventDefault()
     const required = ['name', 'email', 'phone', 'line1', 'city', 'state', 'pincode']
     for (const f of required) {
@@ -93,10 +94,14 @@ export default function CheckoutPage() {
     }
     if (shipping.pincode.length !== 6) return setError('Please enter a valid 6-digit PIN code.')
     setError('')
+    // Check Shiprocket serviceability in background (non-blocking)
+    checkPincodeServiceability(shipping.pincode).then(svc =>
+      setServiceability({ ...svc, checked: true })
+    )
     setStep('payment')
   }
 
-  const handleRazorpayPay = async () => {
+  const handleCODOrder = async () => {
     setError('')
     setLoading(true)
     setStep('processing')
@@ -108,49 +113,31 @@ export default function CheckoutPage() {
       size: i.size,
     }))
 
-    const onSuccess = async (paymentResponse) => {
-      try {
-        const order = await createOrder({
-          userId: user?.id || null,
-          items: orderItems,
-          subtotal: cartTotal,
-          total: finalTotal,
-          shippingAddress: shipping,
-          stripePaymentIntentId: paymentResponse.razorpay_payment_id,
-        }).catch(() => ({ id: orderId }))
+    try {
+      const order = await createOrder({
+        userId: user?.id || null,
+        items: orderItems,
+        subtotal: cartTotal,
+        total: finalTotal,
+        shippingAddress: shipping,
+        stripePaymentIntentId: 'COD',
+      }).catch(() => ({ id: orderId }))
 
-        await Promise.all(items.map(i => decrementProductStock(i.product.id, i.qty)))
+      await Promise.all(items.map(i => decrementProductStock(i.product.id, i.qty)))
 
-        if (saveAddrChecked && user?.id) saveAddress(user.id, shipping)
+      if (saveAddrChecked && user?.id) saveAddress(user.id, shipping)
 
-        sendWhatsAppOrderNotification({ orderId: order.id || orderId, items: orderItems, total: finalTotal, shipping })
+      sendWhatsAppOrderNotification({ orderId: order.id || orderId, items: orderItems, total: finalTotal, shipping })
 
-        clearCart()
-        showToast('Order placed successfully! 🎉', 'success')
-        navigate('/order-success', { state: { orderId: order.id || orderId, shipping, total: finalTotal } })
-      } catch (err) {
-        setError(err.message || 'Order creation failed. Contact support.')
-        setStep('payment')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    const onFailure = (err) => {
-      setError(err.message || 'Payment failed. Please try again.')
+      clearCart()
+      showToast('Order placed! Pay on delivery 🎉', 'success')
+      navigate('/order-success', { state: { orderId: order.id || orderId, shipping, total: finalTotal } })
+    } catch (err) {
+      setError(err.message || 'Order creation failed. Contact support.')
       setStep('payment')
+    } finally {
       setLoading(false)
     }
-
-    await openRazorpayCheckout({
-      orderId,
-      amount: finalTotal,
-      name: shipping.name,
-      email: shipping.email,
-      phone: shipping.phone,
-      onSuccess,
-      onFailure,
-    })
   }
 
   const inputClass = "w-full bg-transparent text-white placeholder-white/25 outline-none text-[14px] py-3"
@@ -304,21 +291,14 @@ export default function CheckoutPage() {
               </form>
             )}
 
-            {/* ── Payment Step — Razorpay ── */}
+            {/* ── Confirm & Place Order (Cash on Delivery) ── */}
             {step === 'payment' && (
               <div className="space-y-5 animate-fadeIn">
                 <div>
-                  <h2 className="font-serif text-xl font-semibold text-white/90 mb-1">Payment</h2>
-                  <p className="text-[13px] text-white/40 mb-4">Pay securely via Razorpay (UPI, Cards, Net Banking)</p>
+                  <h2 className="font-serif text-xl font-semibold text-white/90 mb-1">Confirm Order</h2>
+                  <p className="text-[13px] text-white/40 mb-4">Review and place your order — pay cash when it arrives.</p>
 
-                  {RAZORPAY_DEMO_MODE && (
-                    <div className="flex items-start gap-2 glass border border-amber-400/20 rounded-xl px-4 py-3 mb-5 text-[12px] text-amber-400/80">
-                      <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      <p>Demo mode active. Add your Razorpay Key ID in <code className="font-mono text-[11px]">.env</code> for live payments. No real charges will be made.</p>
-                    </div>
-                  )}
-
-                  {/* Delivery destination summary */}
+                  {/* Delivery destination + Shiprocket estimate */}
                   {shipping.city && (
                     <div className="glass rounded-2xl border border-white/10 p-4 mb-5">
                       <div className="flex items-center gap-3">
@@ -327,35 +307,30 @@ export default function CheckoutPage() {
                         </div>
                         <div>
                           <p className="text-[13px] font-medium text-white/80">Shipping to {shipping.city}, {shipping.state}</p>
-                          <p className="text-[11px] text-white/40">2–5 business days via courier</p>
+                          <p className="text-[11px] text-white/40">
+                            {serviceability.checked && serviceability.estimatedDays
+                              ? `Est. ${serviceability.estimatedDays} business days via ${serviceability.courierName || 'courier'}`
+                              : '2–5 business days via Shiprocket'}
+                          </p>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Payment option: Razorpay */}
-                  <div className="glass-premium rounded-2xl border border-[#b76e79]/20 p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#b76e79] to-[#8b4958] flex items-center justify-center shadow-lg">
-                        <Lock className="w-6 h-6 text-white" />
+                  {/* Cash on Delivery option */}
+                  <div className="glass-premium rounded-2xl border border-emerald-500/20 p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center shadow-lg">
+                        <Package className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <p className="font-semibold text-white/90 text-[15px]">Razorpay</p>
-                        <p className="text-[11px] text-white/40">UPI · Cards · Net Banking · Wallet</p>
+                        <p className="font-semibold text-white/90 text-[15px]">Cash on Delivery</p>
+                        <p className="text-[11px] text-white/40">Pay {formatPrice(finalTotal)} when your order arrives</p>
                       </div>
-                      <CheckCircle className="w-5 h-5 text-[#b76e79] ml-auto" />
+                      <CheckCircle className="w-5 h-5 text-emerald-400 ml-auto" />
                     </div>
-
-                    <div className="grid grid-cols-4 gap-2 mb-4">
-                      {['UPI', 'Cards', 'NetBank', 'Wallet'].map(m => (
-                        <div key={m} className="glass rounded-lg py-2 text-center border border-white/8">
-                          <p className="text-[10px] text-white/40">{m}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <p className="text-[11px] text-white/30 mb-4">
-                      A secure Razorpay popup will open to complete your payment — no page redirect needed.
+                    <p className="text-[11px] text-white/30">
+                      No advance payment needed. Keep the exact amount ready at delivery. Shipped via Shiprocket.
                     </p>
                   </div>
                 </div>
@@ -363,19 +338,17 @@ export default function CheckoutPage() {
                 {error && <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5">{error}</p>}
 
                 <button
-                  onClick={handleRazorpayPay}
+                  onClick={handleCODOrder}
                   disabled={loading}
                   className="w-full btn-liquid rounded-2xl py-4 text-[15px] font-semibold text-white tracking-wide flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
                 >
-                  <Lock className="w-4 h-4" />
-                  {RAZORPAY_DEMO_MODE
-                    ? `Place Demo Order — ${formatPrice(finalTotal)}`
-                    : `Pay ${formatPrice(finalTotal)} via Razorpay`}
+                  <Package className="w-4 h-4" />
+                  {loading ? 'Placing Order…' : `Place Order — Pay ${formatPrice(finalTotal)} on Delivery`}
                 </button>
 
                 <p className="text-center text-[11px] text-white/20 flex items-center justify-center gap-1.5">
-                  <Lock className="w-3 h-3" />
-                  {RAZORPAY_DEMO_MODE ? 'Demo mode — no real payment' : 'Secured by Razorpay · 256-bit SSL encryption'}
+                  <Package className="w-3 h-3" />
+                  Cash on Delivery · Shipped via Shiprocket
                 </p>
 
                 <button type="button" onClick={() => setStep('shipping')} className="w-full text-center text-[12px] text-white/25 hover:text-white/50 transition-colors">
@@ -500,11 +473,11 @@ export default function CheckoutPage() {
 
                 {/* Payment method badge */}
                 <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-white/20">
-                  <Smartphone className="w-3 h-3" />
-                  <span>Secured by Razorpay</span>
+                  <Package className="w-3 h-3" />
+                  <span>Cash on Delivery</span>
                   <span>·</span>
                   <Package className="w-3 h-3" />
-                  <span>Shipped by us with care</span>
+                  <span>Shipped via Shiprocket</span>
                 </div>
               </div>
             </div>
