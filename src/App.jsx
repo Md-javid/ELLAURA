@@ -6,6 +6,7 @@ import SearchModal from './components/SearchModal'
 import CartSidebar from './components/CartSidebar'
 import Toast from './components/Toast'
 import ProductModal from './components/ProductModal'
+import ComingSoonPage from './pages/ComingSoonPage'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import CheckoutPage from './pages/CheckoutPage'
@@ -15,8 +16,21 @@ import LookbookPage from './pages/LookbookPage'
 import OrdersPage from './pages/OrdersPage'
 import NotFoundPage from './pages/NotFoundPage'
 
+// ── COMING SOON MODE ──────────────────────────────────────────
+// Set to false (and redeploy) when you're ready to go live!
+const COMING_SOON = true
+
 export default function App() {
   const { searchOpen, setSearchOpen, toast } = useUI()
+
+  // ── Coming Soon gate: only /admin bypasses it ─────────────
+  if (COMING_SOON && typeof window !== 'undefined') {
+    const path = window.location.pathname
+    const isAdminPath = path === '/admin' || path.startsWith('/admin/')
+    if (!isAdminPath) {
+      return <ComingSoonPage />
+    }
+  }
 
   return (
     <div className="neon-bg min-h-screen relative">

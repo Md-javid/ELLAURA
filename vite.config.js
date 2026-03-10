@@ -2,10 +2,14 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  base: '/ELLAURA/',
+  base: '/',
   plugins: [react()],
   server: {
     host: '0.0.0.0',
     port: 5173,
+  },
+  build: {
+    // Raise the chunk size warning limit to avoid noise; bundle is acceptable
+    chunkSizeWarningLimit: 600,
   },
 })

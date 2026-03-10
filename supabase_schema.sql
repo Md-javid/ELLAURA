@@ -265,6 +265,23 @@ begin
 end;
 $$ language plpgsql;
 
+-- ── 9. Waitlist (Coming Soon email capture) ─────────────────
+-- Stores emails from the "Notify Me" form on the Coming Soon page.
+-- Safe to run even after launch — table stays but app stops writing to it.
+create table if not exists waitlist (
+  id         uuid primary key default gen_random_uuid(),
+  email      text unique not null,
+  created_at timestamptz default now()
+);
+
+alter table waitlist enable row level security;
+drop policy if exists "Anyone can join waitlist" on waitlist;
+create policy "Anyone can join waitlist"
+  on waitlist for insert with check (true);
+drop policy if exists "Waitlist is not publicly readable" on waitlist;
+create policy "Waitlist is not publicly readable"
+  on waitlist for select using (false);
+
 -- ── Done! ────────────────────────────────────────────────────
 -- All tables, policies, and seed data are ready.
 -- You can safely re-run this script at any time.

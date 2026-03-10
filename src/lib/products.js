@@ -21,7 +21,10 @@ export const COLOR_SWATCHES = {
   'Noir Black': '#111111',
 }
 
+// Products will be added via the Admin panel before launch.
+// Keep this array empty until the collection is ready.
 export const PRODUCTS = [
+  /*
   {
     id: 'EL001',
     name: 'Velvet Luxe Midi',
@@ -157,6 +160,7 @@ export const PRODUCTS = [
     deliveryDays: 48,
     stock: 6,
   },
+  */
 ]
 
 export const getProductById = (id) => PRODUCTS.find(p => p.id === id) || null
@@ -174,8 +178,8 @@ export const getLiveProducts = () => {
       return active.length > 0 ? active : PRODUCTS
     }
   } catch {}
-  // No admin data yet — show the built-in launch collection
-  return PRODUCTS
+  // No admin data yet — collection is coming soon
+  return []
 }
 
 // Returns products recently added by admin (badge === 'New' or added within last 7 days)
