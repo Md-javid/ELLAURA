@@ -83,7 +83,7 @@ export default function Header() {
           </button>
 
           {/* ── Brand ── */}
-          <Link to="/" className="flex flex-col items-center justify-self-center lg:justify-self-auto flex-shrink-0">
+          <Link to="/" className="flex flex-col items-center justify-self-center lg:justify-self-auto flex-shrink-0 mt-2 lg:mt-0">
             <span className="font-serif text-xl sm:text-2xl font-bold tracking-widest text-rose-gold leading-none">
               ELLAURA
             </span>
