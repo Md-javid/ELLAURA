@@ -160,6 +160,15 @@ const demoSignIn = ({ email, password }) => {
 
 export const signUp = async ({ email, password, fullName, phone, city, stylePreference }) => {
   if (isDemo()) return demoSignUp({ email, password, fullName, phone, city, stylePreference })
+
+  const profilePayload = { full_name: fullName || '', phone, city, style_preference: stylePreference }
+
+  const upsertProfile = async (userId) => {
+    try {
+      await supabase.from('profiles').upsert({ id: userId, ...profilePayload }).select()
+    } catch { /* trigger handles it as backup */ }
+  }
+
   try {
     const { data, error } = await sbFetch(() =>
       supabase.auth.signUp({
@@ -169,40 +178,35 @@ export const signUp = async ({ email, password, fullName, phone, city, stylePref
       })
     )
     if (error) {
-      // Rate-limited by Supabase — fall back to local demo auth
       if (error.message?.toLowerCase().includes('rate limit')) {
         console.warn('[Ellaura] Supabase email rate limit hit — using local auth instead.')
         return demoSignUp({ email, password, fullName, phone, city, stylePreference })
       }
       throw error
     }
-    if (data.user) {
-      try {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          full_name: fullName,
-          phone,
-          city,
-          style_preference: stylePreference,
-        }).select()
-      } catch { /* non-critical */ }
+
+    // If session is available immediately, insert profile now (auth.uid() is set)
+    if (data.user && data.session) {
+      await upsertProfile(data.user.id)
+      return data
     }
 
-    // If Supabase has email confirmation enabled, data.session will be null.
-    // Auto-login with the same credentials so the user doesn't have to confirm email.
+    // No session yet (email confirmation required) — auto sign-in first, then insert profile
     if (data.user && !data.session) {
       try {
         const loginResult = await supabase.auth.signInWithPassword({ email, password })
         if (loginResult.error) {
-          // Email confirmation is strictly required — fall back to local auth
           console.warn('[Ellaura] Email confirmation required — using local auth.')
           return demoSignUp({ email, password, fullName, phone, city, stylePreference })
         }
+        // Now session is active — safe to insert profile
+        await upsertProfile(data.user.id)
         return loginResult.data
       } catch {
         return demoSignUp({ email, password, fullName, phone, city, stylePreference })
       }
     }
+
     return data
   } catch (err) {
     if (err.message?.toLowerCase().includes('rate limit')) {
