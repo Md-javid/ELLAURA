@@ -205,7 +205,12 @@ export default function OrdersPage() {
       setShowChangePassword(false)
       showToast('Password updated!', 'success')
     } catch (err) {
-      showToast(err?.message || 'Failed to update password.', 'error')
+      const msg = err?.message || ''
+      if (msg.toLowerCase().includes('session missing') || msg.toLowerCase().includes('session')) {
+        showToast('Session expired — please log out and log back in, then try again.', 'error')
+      } else {
+        showToast(msg || 'Failed to update password.', 'error')
+      }
     } finally {
       setPwSaving(false)
     }
