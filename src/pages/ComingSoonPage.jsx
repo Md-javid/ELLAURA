@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Instagram, Mail, Sparkles, Heart } from 'lucide-react'
+import { Instagram, Mail, Sparkles, Heart, Scissors, Truck, Gem } from 'lucide-react'
 import { supabase, DEMO_MODE } from '../lib/supabase'
 
 const WA_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '919087915193'
@@ -11,45 +11,6 @@ const WhatsAppIcon = () => (
   </svg>
 )
 
-// ── Countdown hook ────────────────────────────────────────────
-function useCountdown(target) {
-  const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
-  useEffect(() => {
-    const tick = () => {
-      const diff = Math.max(0, target - Date.now())
-      setTime({
-        days: Math.floor(diff / 86400000),
-        hours: Math.floor((diff % 86400000) / 3600000),
-        minutes: Math.floor((diff % 3600000) / 60000),
-        seconds: Math.floor((diff % 60000) / 1000),
-      })
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [target])
-  return time
-}
-
-// ── Countdown unit card ───────────────────────────────────────
-function CountdownUnit({ value, label }) {
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className="relative">
-        <div className="absolute inset-0 rounded-2xl blur-xl bg-purple-500/20 scale-110" />
-        <div className="relative glass-premium rounded-2xl border border-purple-500/20 px-4 sm:px-6 py-3 sm:py-4 min-w-[64px] sm:min-w-[80px] text-center">
-          <span className="font-serif font-bold text-3xl sm:text-4xl text-gradient-hero tabular-nums leading-none">
-            {String(value).padStart(2, '0')}
-          </span>
-        </div>
-      </div>
-      <span className="text-[10px] sm:text-[11px] tracking-[0.25em] uppercase text-white/35 font-medium">
-        {label}
-      </span>
-    </div>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────
 export default function ComingSoonPage() {
   const [email, setEmail] = useState('')
@@ -57,10 +18,6 @@ export default function ComingSoonPage() {
   const [submitting, setSubmitting] = useState(false)
   const [inputError, setInputError] = useState('')
   const canvasRef = useRef(null)
-
-  // April 9 2026 at midnight IST — change to your real launch date
-  const LAUNCH_TARGET = new Date('2026-04-09T00:00:00+05:30').getTime()
-  const { days, hours, minutes, seconds } = useCountdown(LAUNCH_TARGET)
 
   // ── Starfield canvas ──────────────────────────────────────
   useEffect(() => {
@@ -114,7 +71,18 @@ export default function ComingSoonPage() {
     setInputError('')
     setSubmitting(true)
 
-    // Always persist locally
+    // Save to Supabase waitlist — primary store
+    try {
+      const { error } = await supabase.from('waitlist').insert({ email: trimmed })
+      // 23505 = unique_violation (email already on list) — treat as success
+      if (error && error.code !== '23505') {
+        console.warn('[Ellaura] Waitlist DB save failed:', error.message)
+      }
+    } catch (err) {
+      console.warn('[Ellaura] Waitlist DB unreachable:', err.message)
+    }
+
+    // Mirror to localStorage as offline fallback
     try {
       const key = 'ellaura_waitlist'
       const existing = JSON.parse(localStorage.getItem(key) || '[]')
@@ -123,12 +91,6 @@ export default function ComingSoonPage() {
       }
     } catch { /* ignore */ }
 
-    // Also try Supabase waitlist table if live
-    if (!DEMO_MODE) {
-      supabase.from('waitlist').upsert({ email: trimmed }, { onConflict: 'email' }).catch(() => {})
-    }
-
-    await new Promise(r => setTimeout(r, 800))
     setSubmitting(false)
     setSubmitted(true)
   }
@@ -167,7 +129,7 @@ export default function ComingSoonPage() {
             ELLAURA
           </h1>
           <p className="text-[9px] sm:text-[10px] tracking-[0.55em] text-white/25 font-light uppercase mt-2">
-            Couture Nights
+            Couture
           </p>
         </div>
 
@@ -179,27 +141,15 @@ export default function ComingSoonPage() {
             </span>
           </div>
           <h2 className="font-serif text-3xl sm:text-5xl font-bold text-white/90 leading-tight mb-4">
-            The Night Deserves<br />
+            You Deserve<br />
             <span className="text-gradient-hero italic">Something&nbsp;Extraordinary.</span>
           </h2>
           <p className="text-[14px] sm:text-[15px] text-white/45 max-w-md mx-auto leading-relaxed">
-            Premium custom-stitched nightwear and cocktail dresses — hand-crafted for the modern Indian woman. Be the first to know.
+            Premium custom-stitched western and occasion dresses — hand-crafted for the modern Indian woman. Be the first to know.
           </p>
         </div>
 
-        {/* Countdown */}
-        <div className="mb-12 animate-fadeIn" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
-          <p className="text-[11px] tracking-[0.3em] uppercase text-white/25 mb-5">Launching in</p>
-          <div className="flex items-start gap-3 sm:gap-5 justify-center">
-            <CountdownUnit value={days} label="Days" />
-            <span className="text-3xl text-white/20 font-thin mt-3 select-none">:</span>
-            <CountdownUnit value={hours} label="Hours" />
-            <span className="text-3xl text-white/20 font-thin mt-3 select-none">:</span>
-            <CountdownUnit value={minutes} label="Mins" />
-            <span className="text-3xl text-white/20 font-thin mt-3 select-none">:</span>
-            <CountdownUnit value={seconds} label="Secs" />
-          </div>
-        </div>
+
 
         {/* Email capture */}
         <div className="w-full max-w-md mb-10 animate-fadeIn" style={{ animationDelay: '0.55s', animationFillMode: 'both' }}>
@@ -216,15 +166,15 @@ export default function ComingSoonPage() {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 glass rounded-2xl border border-white/10 px-4 flex items-center gap-3 focus-within:border-[#b76e79]/40 transition-all duration-300">
-                <Mail className="w-4 h-4 text-white/30 flex-shrink-0" />
+            <form onSubmit={handleSubscribe} className="flex flex-row gap-2">
+              <div className="flex-1 glass rounded-xl sm:rounded-2xl border border-white/10 px-3 sm:px-4 flex items-center gap-2 focus-within:border-[#b76e79]/40 transition-all duration-300">
+                <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/30 flex-shrink-0" />
                 <input
                   type="email"
                   value={email}
                   onChange={e => { setEmail(e.target.value); setInputError('') }}
                   placeholder="your@email.com"
-                  className="flex-1 bg-transparent text-white placeholder-white/25 outline-none text-[14px] py-3.5"
+                  className="flex-1 bg-transparent text-white placeholder-white/25 outline-none text-[13px] sm:text-[14px] py-2.5 sm:py-3.5"
                   disabled={submitting}
                   autoComplete="email"
                 />
@@ -232,7 +182,7 @@ export default function ComingSoonPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="btn-liquid rounded-2xl px-6 py-3.5 text-[13px] font-semibold text-white tracking-wide active:scale-95 transition-all whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+                className="btn-liquid rounded-xl sm:rounded-2xl px-4 sm:px-6 py-2.5 sm:py-3.5 text-[12px] sm:text-[13px] font-semibold text-white tracking-wide active:scale-95 transition-all whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <span className="flex items-center gap-2 justify-center">
@@ -262,28 +212,31 @@ export default function ComingSoonPage() {
             href={`https://wa.me/${WA_NUMBER}?text=Hi%20Ellaura!%20I%20can%27t%20wait%20for%20you%20to%20launch%20%F0%9F%92%96`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 glass rounded-2xl border border-white/10 px-5 py-2.5 text-[13px] text-white/60 hover:text-white hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all duration-300 group"
+            className="flex items-center gap-2 glass rounded-2xl border border-white/10 px-3 sm:px-5 py-2.5 text-[13px] text-white/60 hover:text-white hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all duration-300 group"
+            aria-label="WhatsApp Us"
           >
             <span className="text-emerald-400 group-hover:scale-110 transition-transform">
               <WhatsAppIcon />
             </span>
-            WhatsApp Us
+            <span className="hidden sm:inline">WhatsApp Us</span>
           </a>
           <a
             href="https://instagram.com/ellaura.in"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 glass rounded-2xl border border-white/10 px-5 py-2.5 text-[13px] text-white/60 hover:text-white hover:border-[#b76e79]/30 hover:bg-[#b76e79]/5 transition-all duration-300 group"
+            className="flex items-center gap-2 glass rounded-2xl border border-white/10 px-3 sm:px-5 py-2.5 text-[13px] text-white/60 hover:text-white hover:border-[#b76e79]/30 hover:bg-[#b76e79]/5 transition-all duration-300 group"
+            aria-label="Follow on Instagram"
           >
             <Instagram className="w-4 h-4 text-[#b76e79] group-hover:scale-110 transition-transform" />
-            Follow on Instagram
+            <span className="hidden sm:inline">Follow on Instagram</span>
           </a>
           <a
-            href="mailto:hello@ellaura.in"
-            className="flex items-center gap-2 glass rounded-2xl border border-white/10 px-5 py-2.5 text-[13px] text-white/60 hover:text-white hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-300 group"
+            href="mailto:ellauraoffi@gmail.com"
+            className="flex items-center gap-2 glass rounded-2xl border border-white/10 px-3 sm:px-5 py-2.5 text-[13px] text-white/60 hover:text-white hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-300 group"
+            aria-label="Email us"
           >
             <Mail className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
-            hello@ellaura.in
+            <span className="hidden sm:inline">ellauraoffi@gmail.com</span>
           </a>
         </div>
 
@@ -293,15 +246,17 @@ export default function ComingSoonPage() {
           style={{ animationDelay: '0.85s', animationFillMode: 'both' }}
         >
           {[
-            { icon: '✂️', title: 'Custom Stitched', desc: 'Every piece made to your exact measurements' },
-            { icon: '⚡', title: '48-Hour Delivery', desc: 'Hand-crafted & delivered in two days' },
-            { icon: '💎', title: 'Premium Fabrics', desc: 'Velvet, satin & silk — nothing less' },
-          ].map(({ icon, title, desc }) => (
+            { Icon: Scissors,    color: 'text-[#b76e79]', bg: 'bg-[#b76e79]/10 border-[#b76e79]/25',   title: 'Custom Stitched',   desc: 'Every piece made to your exact measurements' },
+            { Icon: Truck,       color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/25',   title: 'Express Delivery',  desc: 'Swift, tracked shipping straight to your door' },
+            { Icon: Gem,         color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/25', title: 'Premium Fabrics',   desc: 'Velvet, satin & silk — nothing less' },
+          ].map(({ Icon, color, bg, title, desc }) => (
             <div
               key={title}
               className="glass-liquid rounded-2xl border border-purple-500/10 p-4 text-center hover:border-[#b76e79]/20 transition-all duration-300 group"
             >
-              <div className="text-2xl mb-2">{icon}</div>
+              <div className={`w-10 h-10 rounded-xl border ${bg} flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300`}>
+                <Icon className={`w-5 h-5 ${color}`} strokeWidth={1.75} />
+              </div>
               <p className="text-[13px] font-semibold text-white/80 mb-1 group-hover:text-white transition-colors">
                 {title}
               </p>

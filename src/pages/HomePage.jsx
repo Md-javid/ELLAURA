@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Hero from '../components/Hero'
 import ProductGallery from '../components/ProductGallery'
-import { Instagram, Mail, Sparkles, Heart, X, Zap, Scissors, Gem, RotateCcw, Ruler, MoonStar } from 'lucide-react'
+import { Instagram, Mail, Sparkles, Heart, X, Zap, Scissors, Gem, RotateCcw, Ruler, MoonStar, Star, MapPin } from 'lucide-react'
 import { getNewArrivals } from '../lib/products'
 
 const WhatsAppIcon = () => (
@@ -99,7 +99,7 @@ function NewArrivalsPopup() {
 
 function AboutSection() {
   return (
-    <section id="about" className="relative py-20 overflow-hidden">
+    <section id="custom-fit" className="relative py-20 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Divider */}
         <div className="flex items-center gap-4 mb-12">
@@ -113,10 +113,10 @@ function AboutSection() {
           <div>
             <p className="text-[10px] tracking-[0.35em] text-purple-400/60 uppercase mb-5">Our Philosophy</p>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white/90 mb-6 leading-snug">
-              Every woman deserves to feel like the night was made for her.
+              Every woman deserves to feel like the world was made for her.
             </h2>
             <p className="text-[15px] text-white/45 leading-relaxed mb-6">
-              Ellaura crafts custom pieces that fit your body, your mood, and your night — not the other way around. Each silhouette is hand-stitched by artisans in Coimbatore, delivered in 48 hours.
+              Ellaura crafts custom pieces that fit your body, your mood, and your moment — not the other way around. Each silhouette is hand-stitched by artisans in Coimbatore, delivered with care.
             </p>
 
             {/* Custom Fit Process */}
@@ -130,7 +130,7 @@ function AboutSection() {
                   { step: '01', label: 'Share your measurements via WhatsApp' },
                   { step: '02', label: 'Choose your fabric, color & silhouette preferences' },
                   { step: '03', label: 'Our artisans hand-stitch your piece in Coimbatore' },
-                  { step: '04', label: 'Delivered to your doorstep within 48 hours' },
+                  { step: '04', label: 'Delivered to your doorstep with care' },
                 ].map(({ step, label }) => (
                   <div key={step} className="flex items-start gap-3">
                     <span className="text-[11px] font-bold text-purple-400/80 bg-purple-500/10 rounded-lg px-2 py-1 flex-shrink-0">{step}</span>
@@ -154,11 +154,11 @@ function AboutSection() {
           <div className="grid grid-cols-3 gap-4">
             {[
               { Icon: Scissors, title: 'Custom Fit', sub: 'Your measurements, your silhouette', color: 'text-[#b76e79]' },
-              { Icon: Zap, title: '48h Ready', sub: 'Express hand-stitching', color: 'text-purple-400' },
+              { Icon: Sparkles, title: 'Hand Stitched', sub: 'Pure artisan craftsmanship', color: 'text-purple-400' },
               { Icon: Gem, title: 'Premium', sub: 'Finest fabrics only', color: 'text-purple-300' },
-              { Icon: RotateCcw, title: '7-Day Returns', sub: 'Hassle-free policy', color: 'text-[#b76e79]' },
+              { Icon: Heart, title: 'Made to Order', sub: 'Created just for you', color: 'text-[#b76e79]' },
               { Icon: Ruler, title: 'Zero Alterations', sub: 'Perfect fit, guaranteed', color: 'text-purple-400' },
-              { Icon: MoonStar, title: 'Night-Tested', sub: 'Designed for the evening', color: 'text-purple-300' },
+              { Icon: Star, title: 'Limited Drops', sub: 'Exclusive, never mass made', color: 'text-purple-300' },
             ].map(({ Icon, title, sub, color }) => (
               <div key={title} className="glass-premium rounded-2xl border border-purple-500/15 p-4 text-center hover:border-purple-400/30 transition-all duration-300 group">
                 <Icon className={`w-6 h-6 mx-auto mb-2 ${color} group-hover:scale-110 transition-transform`} />
@@ -186,7 +186,7 @@ function Footer() {
               Premium custom-stitched clothing for the modern city woman. Hand-crafted in Coimbatore.
             </p>
             <div className="flex items-center gap-3 mt-5">
-              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"
+              <a href="https://www.instagram.com/ellaura.in?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener noreferrer"
                 className="w-10 h-10 rounded-2xl glass border border-white/10 flex items-center justify-center hover:bg-white/10 text-white/50 hover:text-white transition-all active:scale-95" aria-label="Instagram">
                 <Instagram className="w-4 h-4" />
               </a>
@@ -194,7 +194,7 @@ function Footer() {
                 className="w-10 h-10 rounded-2xl glass border border-white/10 flex items-center justify-center hover:bg-[#25D366]/15 hover:border-[#25D366]/30 text-white/50 hover:text-[#25D366] transition-all active:scale-95" aria-label="WhatsApp">
                 <WhatsAppIcon />
               </a>
-              <a href="mailto:hello@ellaura.in"
+              <a href="mailto:ellauraoffi@gmail.com"
                 className="w-10 h-10 rounded-2xl glass border border-white/10 flex items-center justify-center hover:bg-white/10 text-white/50 hover:text-white transition-all active:scale-95" aria-label="Email">
                 <Mail className="w-4 h-4" />
               </a>
@@ -245,12 +245,124 @@ function Footer() {
   )
 }
 
+function BrandStorySection() {
+  return (
+    <section id="about" className="relative py-20 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Divider */}
+        <div className="flex items-center gap-4 mb-14">
+          <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent to-[#b76e79]/30" />
+          <Heart className="w-4 h-4 text-[#b76e79]/50 fill-[#b76e79]/30" />
+          <div className="flex-1 h-[1px] bg-gradient-to-l from-transparent to-[#b76e79]/30" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          {/* Left: brand story */}
+          <div>
+            <p className="text-[10px] tracking-[0.35em] text-[#b76e79]/60 uppercase mb-5">Our Story</p>
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white/90 mb-6 leading-snug">
+              Born in Coimbatore.<br />Made for you.
+            </h2>
+            <p className="text-[15px] text-white/45 leading-relaxed mb-5">
+              Ellaura started with one simple belief — that every woman deserves to walk into a room and feel completely, unapologetically herself. Not squeezed into a standard size. Not settling for "close enough".
+            </p>
+            <p className="text-[15px] text-white/40 leading-relaxed mb-5">
+              We are a small team of designers and artisans based in Coimbatore who hand-craft each piece to order. No warehouses. No mass production. Just your measurements, your fabric choice, and our hands.
+            </p>
+            <p className="text-[15px] text-white/40 leading-relaxed mb-8">
+              Every Ellaura piece is a limited drop — designed around real occasions like brunches, rooftop dinners, cocktail evenings, and everything in between. When you wear Ellaura, you're wearing something that was literally made for you.
+            </p>
+
+            {/* Values */}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { Icon: Gem,      color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/20', title: 'Small batch',      desc: 'Never mass produced' },
+                { Icon: Scissors, color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/20', title: 'Handcrafted',      desc: 'Every stitch by our artisans' },
+                { Icon: MapPin,   color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/20', title: 'Coimbatore made',  desc: 'Proudly local, globally inspired' },
+                { Icon: Heart,    color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/20', title: 'Made for you',     desc: 'Your body, your story' },
+              ].map(({ Icon, color, bg, title, desc }) => (
+                <div key={title} className="glass rounded-2xl border border-white/8 px-4 py-3.5 flex items-start gap-3">
+                  <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 border ${bg}`}>
+                    <Icon className={`w-3.5 h-3.5 ${color}`} />
+                  </span>
+                  <div>
+                    <p className="text-[12px] font-semibold text-white/75">{title}</p>
+                    <p className="text-[11px] text-white/30 mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: quote + contact */}
+          <div className="flex flex-col gap-6">
+            {/* Quote card */}
+            <div className="glass-dark rounded-[28px] border border-[#b76e79]/20 p-8 relative overflow-hidden">
+              <div className="absolute -top-4 -left-2 text-[90px] text-[#b76e79]/8 font-serif leading-none select-none">&ldquo;</div>
+              <p className="font-serif text-xl text-white/80 leading-relaxed relative z-10 mb-4">
+                We don’t make clothes for a body type. We make clothes for <em>your</em> body, your story, your moment.
+              </p>
+              <p className="text-[11px] text-white/30 tracking-widest uppercase">— Ellaura Founders</p>
+            </div>
+
+            {/* Contact / social */}
+            <div className="glass rounded-[24px] border border-white/8 p-6 space-y-4">
+              <p className="text-[11px] tracking-[0.2em] text-white/30 uppercase">Get in touch</p>
+              <a
+                href="https://wa.me/919087915193?text=Hi%20Ellaura!%20I%27d%20love%20to%20know%20more%20about%20your%20brand%20%F0%9F%92%96"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 glass rounded-xl border border-white/8 px-4 py-3 hover:border-[#b76e79]/30 transition-all group"
+              >
+                <span className="w-8 h-8 rounded-xl bg-[#25D366]/15 border border-[#25D366]/30 flex items-center justify-center flex-shrink-0">
+                  <WhatsAppIcon />
+                </span>
+                <div>
+                  <p className="text-[13px] font-semibold text-white/75 group-hover:text-white transition-colors">WhatsApp us</p>
+                  <p className="text-[11px] text-white/30">Chat with our team</p>
+                </div>
+              </a>
+              <a
+                href="https://instagram.com/ellaura.in"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 glass rounded-xl border border-white/8 px-4 py-3 hover:border-[#b76e79]/30 transition-all group"
+              >
+                <span className="w-8 h-8 rounded-xl bg-[#b76e79]/15 border border-[#b76e79]/30 flex items-center justify-center flex-shrink-0">
+                  <Instagram className="w-4 h-4 text-[#b76e79]" />
+                </span>
+                <div>
+                  <p className="text-[13px] font-semibold text-white/75 group-hover:text-white transition-colors">@ellaura.in</p>
+                  <p className="text-[11px] text-white/30">Follow us on Instagram</p>
+                </div>
+              </a>
+              <a
+                href="mailto:ellauraoffi@gmail.com"
+                className="flex items-center gap-3 glass rounded-xl border border-white/8 px-4 py-3 hover:border-[#b76e79]/30 transition-all group"
+              >
+                <span className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                  <Mail className="w-4 h-4 text-white/40" />
+                </span>
+                <div>
+                  <p className="text-[13px] font-semibold text-white/75 group-hover:text-white transition-colors">ellauraoffi@gmail.com</p>
+                  <p className="text-[11px] text-white/30">Email us anytime</p>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function HomePage() {
   return (
     <main>
       <Hero />
       <ProductGallery />
       <AboutSection />
+      <BrandStorySection />
       <Footer />
       <NewArrivalsPopup />
     </main>

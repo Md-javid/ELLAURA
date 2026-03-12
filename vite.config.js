@@ -9,7 +9,18 @@ export default defineConfig({
     port: 5173,
   },
   build: {
-    // Raise the chunk size warning limit to avoid noise; bundle is acceptable
     chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // React + router in one cached vendor chunk
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // Icons in their own chunk (large, rarely changes)
+          'vendor-icons': ['lucide-react'],
+          // Supabase SDK
+          'vendor-supabase': ['@supabase/supabase-js'],
+        },
+      },
+    },
   },
 })

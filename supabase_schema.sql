@@ -242,7 +242,8 @@ on conflict (code) do nothing;
 
 -- ── 7. Helpful Views ─────────────────────────────────────────
 
-create or replace view order_summary as
+drop view if exists order_summary;
+create view order_summary as
 select
   o.id,
   o.user_id,
@@ -281,6 +282,28 @@ create policy "Anyone can join waitlist"
 drop policy if exists "Waitlist is not publicly readable" on waitlist;
 create policy "Waitlist is not publicly readable"
   on waitlist for select using (false);
+
+-- ── 10. Wishlists ────────────────────────────────────────────
+-- Persists each user's wishlist across devices.
+create table if not exists wishlists (
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid not null references profiles(id) on delete cascade,
+  product_id       text not null,
+  product_snapshot jsonb not null,
+  created_at       timestamptz default now(),
+  unique (user_id, product_id)
+);
+create index if not exists wishlists_user_idx on wishlists(user_id);
+alter table wishlists enable row level security;
+drop policy if exists "Users can manage own wishlist" on wishlists;
+create policy "Users can manage own wishlist"
+  on wishlists for all using (auth.uid() = user_id);
+
+-- ── 11. Cart items — extra columns ───────────────────────────
+-- Add product_snapshot and measurements to cart_items so the app can
+-- hydrate the cart from the DB without a separate products join.
+alter table cart_items add column if not exists product_snapshot jsonb;
+alter table cart_items add column if not exists measurements      jsonb;
 
 -- ── Done! ────────────────────────────────────────────────────
 -- All tables, policies, and seed data are ready.

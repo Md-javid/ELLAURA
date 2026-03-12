@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { CheckCircle, ShoppingBag, Package, MapPin, Mail, ArrowRight, Sparkles } from 'lucide-react'
+import { CheckCircle, ShoppingBag, Package, MapPin, Mail, ArrowRight, Sparkles, Truck } from 'lucide-react'
 
 export default function OrderSuccessPage() {
   const { state } = useLocation()
@@ -9,6 +9,7 @@ export default function OrderSuccessPage() {
   const [orderId, setOrderId] = useState(state?.orderId || `EL-${Date.now().toString().slice(-8)}`)
   const [total, setTotal] = useState(state?.total || 0)
   const [shipping, setShipping] = useState(state?.shipping || {})
+  const tracking = state?.tracking || null  // { awb, courier, trackingUrl }
 
   useEffect(() => {
     const t = setTimeout(() => setShow(true), 100)
@@ -106,6 +107,17 @@ export default function OrderSuccessPage() {
                   </div>
                 </div>
               )}
+
+              {/* Shiprocket AWB tracking — shown only when shipment was auto-created */}
+              {tracking?.awb && (
+                <div className="flex items-center gap-3 glass rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+                  <Truck className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-[10px] text-white/30 uppercase tracking-widest">Tracking number · {tracking.courier}</p>
+                    <p className="font-mono text-[13px] text-emerald-300 tracking-wider">{tracking.awb}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Brand message */}
@@ -128,14 +140,27 @@ export default function OrderSuccessPage() {
                 <ShoppingBag className="w-4 h-4" />
                 Shop More
               </Link>
-              <button
-                onClick={() => alert('Order tracking coming soon! We\'ll send updates via WhatsApp & email.')}
-                className="flex-1 glass rounded-2xl border border-white/10 py-3.5 text-[14px] font-semibold text-white/60 hover:text-white/80 hover:border-white/20 transition-all flex items-center justify-center gap-1.5"
-              >
-                <Package className="w-4 h-4" />
-                Track Order
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              {tracking?.trackingUrl ? (
+                <a
+                  href={tracking.trackingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 glass rounded-2xl border border-emerald-500/30 py-3.5 text-[14px] font-semibold text-emerald-300 hover:text-emerald-200 hover:border-emerald-400/50 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Truck className="w-4 h-4" />
+                  Track Shipment
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </a>
+              ) : (
+                <button
+                  onClick={() => alert('Tracking will be available once your order is dispatched. We\'ll notify you via WhatsApp.')}
+                  className="flex-1 glass rounded-2xl border border-white/10 py-3.5 text-[14px] font-semibold text-white/60 hover:text-white/80 hover:border-white/20 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Package className="w-4 h-4" />
+                  Track Order
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -143,8 +168,8 @@ export default function OrderSuccessPage() {
         {/* Footer note */}
         <p className="text-center text-[11px] text-white/20 mt-6">
           For support, reach us at{' '}
-          <a href="mailto:hello@ellaura.in" className="text-[#b76e79]/60 hover:text-[#b76e79] transition-colors">
-            hello@ellaura.in
+          <a href="mailto:ellauraoffi@gmail.com" className="text-[#b76e79]/60 hover:text-[#b76e79] transition-colors">
+            ellauraoffi@gmail.com
           </a>
         </p>
       </div>

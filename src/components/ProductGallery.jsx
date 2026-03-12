@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Heart, Star, Zap, Moon, ShoppingBag, Eye, X, Shirt } from 'lucide-react'
+import { Heart, Star, Zap, Moon, ShoppingBag, Eye, X, Shirt, ExternalLink, Scissors, Gem, Truck } from 'lucide-react'
 import { useCart, useUI } from '../context/AppContext'
 import { getLiveProducts, COLOR_SWATCHES } from '../lib/products'
 import { getProducts } from '../lib/supabase'
@@ -10,7 +10,7 @@ function VibeToggle({ vibe, onToggle }) {
     <div className="glass rounded-2xl p-1.5 flex items-center gap-1 w-fit">
       {[
         { key: 'cocktail', icon: Zap, label: 'Cocktail Hour', active: 'from-[#b76e79] to-[#8b4f5a] shadow-[#b76e79]/30' },
-        { key: 'club', icon: Moon, label: 'Club Night', active: 'from-[#6366f1] to-[#4f46e5] shadow-[#6366f1]/30' },
+        { key: 'club', icon: Moon, label: 'Club & Party', active: 'from-[#6366f1] to-[#4f46e5] shadow-[#6366f1]/30' },
         { key: 'all', icon: null, label: 'All Pieces', active: 'from-white/15 to-white/5 shadow-white/10' },
       ].map(({ key, icon: Icon, label, active }) => (
         <button
@@ -173,14 +173,7 @@ function ProductCard({ product, index }) {
             <Heart className={`w-3.5 h-3.5 transition-all duration-300 ${liked ? 'fill-[#e8a0a8] text-[#e8a0a8] scale-110' : 'text-white/60'}`} />
           </button>
 
-          {/* Stock warning */}
-          {product.stock <= 5 && (
-            <div className="absolute bottom-12 left-3">
-              <span className="text-[9px] text-amber-400/90 bg-amber-400/10 border border-amber-400/20 rounded-full px-2 py-0.5">
-                Only {product.stock} left
-              </span>
-            </div>
-          )}
+
         </div>
 
         {/* ── Content ── */}
@@ -197,6 +190,20 @@ function ProductCard({ product, index }) {
             <p className="text-[#e8a0a8] font-semibold text-sm whitespace-nowrap">{product.priceDisplay}</p>
           </div>
 
+          {/* Category & Vibe */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-2">
+            {product.category && (
+              <span className="text-[9px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full glass border border-white/10 text-white/40">
+                {product.category}
+              </span>
+            )}
+            {product.vibe?.map(v => (
+              <span key={v} className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-[#b76e79]/15 border border-[#b76e79]/20 text-[#e8a0a8]/60">
+                {v === 'cocktail' ? '🍸' : v === 'club' ? '🌙' : '✦'} {v}
+              </span>
+            ))}
+          </div>
+
           {/* Description (hidden on xs, shown on md+) */}
           <p className="hidden md:block text-[11px] text-white/35 leading-snug mb-2 line-clamp-2">{product.description}</p>
 
@@ -206,6 +213,22 @@ function ProductCard({ product, index }) {
               <Shirt className="w-3 h-3 text-[#b76e79]/50" />
               <span className="text-[10px] text-white/30 truncate">{product.material?.split('•')[0]?.trim()}</span>
             </div>
+          )}
+
+          {/* Instagram link */}
+          {product.instagramUrl && (
+            <a
+              href={product.instagramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 mb-3 text-[10px] text-[#e1306c]/60 hover:text-[#e1306c] transition-colors"
+            >
+              <svg viewBox="0 0 24 24" className="w-3 h-3" fill="currentColor">
+                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+              </svg>
+              View on Instagram
+            </a>
           )}
 
           {/* Color swatches */}
@@ -244,11 +267,13 @@ export default function ProductGallery() {
   const [allProducts, setAllProducts] = useState([])
   const [displayed, setDisplayed] = useState([])
 
-  // Fetch from Supabase on mount; fall back to local/static products
+  // Fetch from Supabase on mount; fall back to localStorage/static when offline or DB is empty
   useEffect(() => {
     getProducts().then(dbProducts => {
+      // DB has products → use it as source of truth
+      // DB is empty (null = offline, [] = no rows yet) → fall back to localStorage/static
       const products = (dbProducts && dbProducts.length > 0)
-        ? dbProducts
+        ? dbProducts.filter(p => p.active !== false)
         : getLiveProducts()
       setAllProducts(products)
       setDisplayed(products)
@@ -285,7 +310,7 @@ export default function ProductGallery() {
             Dress For The
             <span className="text-rose-gold"> Moment.</span>
           </h2>
-          <p className="text-[13px] text-white/40 font-light">Custom stitched. Yours in 48 hours. Coming soon.</p>
+          <p className="text-[13px] text-white/40 font-light">Handcrafted for you. Made to order. Coming soon.</p>
         </div>
         <div className="mt-6 lg:mt-0 overflow-x-auto pb-1">
           <VibeToggle vibe={vibe} onToggle={handleVibeToggle} />
@@ -330,12 +355,14 @@ export default function ProductGallery() {
             {/* Tease cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {[
-                { icon: '✂️', title: 'Custom Stitched', desc: 'Made to your measurements' },
-                { icon: '⚡', title: '48-Hour Delivery', desc: 'From artisan to your door' },
-                { icon: '💎', title: 'Premium Fabrics', desc: 'Velvet, satin & silk' },
-              ].map(({ icon, title, desc }) => (
+                { Icon: Scissors, color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/25', title: 'Custom Stitched',   desc: 'Made to your measurements' },
+                { Icon: Truck,    color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/25', title: 'Express Delivery',   desc: 'From artisan to your door' },
+                { Icon: Gem,      color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/25', title: 'Premium Fabrics',    desc: 'Velvet, satin & silk' },
+              ].map(({ Icon, color, bg, title, desc }) => (
                 <div key={title} className="glass-liquid rounded-2xl border border-purple-500/10 p-4 text-center">
-                  <div className="text-2xl mb-1.5">{icon}</div>
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-2 border ${bg}`}>
+                    <Icon className={`w-4 h-4 ${color}`} />
+                  </div>
                   <p className="text-[12px] font-semibold text-white/75 mb-0.5">{title}</p>
                   <p className="text-[11px] text-white/30">{desc}</p>
                 </div>

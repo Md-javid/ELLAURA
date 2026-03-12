@@ -5,13 +5,14 @@
 <h1 align="center">ELLAURA — Own The Night</h1>
 
 <p align="center">
-  <strong>Premium custom-stitched womenswear for nightlife, cocktails & city culture</strong>
+  <strong>Premium custom-stitched womenswear for nightlife, cocktails & city culture</strong><br/>
+  Every piece stitched to your exact measurements. Delivered in 48–72 hours.
 </p>
 
 <p align="center">
-  <a href="https://ellaura.in">Live Site</a> •
+  <a href="https://ellaura.in">🌐 Live Site</a> •
   <a href="#-quick-start">Quick Start</a> •
-  <a href="#-docker">Docker</a> •
+  <a href="#-supabase-setup">Supabase</a> •
   <a href="#-deployment">Deployment</a>
 </p>
 
@@ -19,9 +20,9 @@
 
 ## ✨ Overview
 
-**Ellaura** is a modern, full-featured e-commerce platform for premium custom-stitched womenswear — specifically designed for India's nightlife, cocktail, and pub culture scene. Every piece is custom-stitched to order within 48–72 hours.
+**Ellaura** is a full-featured e-commerce storefront built for India's nightlife and fashion scene. Customers can browse a curated womenswear collection, enter custom body measurements at checkout, and receive their outfits custom-stitched within 48–72 hours.
 
-The storefront is a single-page React application with a luxurious dark/light theme, AI-powered personal stylist, Stripe payments, and a Supabase backend for auth, orders, and product management.
+Built as a React SPA with a Supabase backend, Razorpay + COD payments, WhatsApp order notifications, and a Google Sheets sync for order tracking — all deployable on Vercel in minutes.
 
 ---
 
@@ -29,16 +30,18 @@ The storefront is a single-page React application with a luxurious dark/light th
 
 | Feature | Description |
 |---------|-------------|
-| **Product Gallery** | Filterable gallery with smooth animations and quick-view modals |
-| **AI Stylist (Ella)** | Chat with an AI personal stylist powered by OpenAI (GPT-4o-mini) |
-| **Cart & Checkout** | Persistent cart with coupon codes and Stripe payment integration |
-| **Auth System** | Sign up / sign in with Supabase Auth (+ demo mode fallback) |
-| **Admin Dashboard** | PIN-protected admin panel for managing products, orders & coupons |
-| **Lookbook** | Curated editorial lookbook page |
-| **Dark / Light Mode** | Glassmorphism-based theme toggle with smooth transitions |
-| **Demo Mode** | Full functionality without any backend — perfect for evaluation |
-| **Responsive** | Mobile-first design optimised for all screen sizes |
-| **SEO Ready** | Open Graph, Twitter Cards, meta tags, structured data |
+| **Product Gallery** | Filterable grid with vibe/category tags and quick-view modals |
+| **Custom Fit** | Customers enter bust/waist/hips + 7 optional measurements + freeform extras |
+| **AI Stylist (Ella)** | Built-in chat assistant for outfit recommendations |
+| **Cart & Wishlist** | Persistent across devices — survives logout/login |
+| **Checkout** | COD + Razorpay online payment, coupon codes, saved addresses |
+| **Order Notifications** | WhatsApp message + Google Sheets row on every order |
+| **Saved Measurements** | One-click save measurements to profile for future orders |
+| **Auth System** | Supabase Auth (email/password) with full demo mode fallback |
+| **Admin Dashboard** | Password-protected panel — add/edit products, manage orders & coupons |
+| **Coming Soon Mode** | Toggle a full-screen waitlist page before launch |
+| **Dark / Light Mode** | Glassmorphism-based theme toggle |
+| **Responsive** | Mobile-first, tested on all screen sizes |
 
 ---
 
@@ -47,12 +50,12 @@ The storefront is a single-page React application with a luxurious dark/light th
 | Layer | Technology |
 |-------|-----------|
 | **Frontend** | React 18, React Router 7, Vite 5 |
-| **Styling** | Tailwind CSS 3, custom glassmorphism design system |
+| **Styling** | Tailwind CSS 3, glassmorphism design system |
 | **Icons** | Lucide React |
-| **Backend** | Supabase (PostgreSQL + Auth + Edge Functions) |
-| **Payments** | Stripe (React Stripe.js) |
-| **AI** | OpenAI GPT-4o-mini via Supabase Edge Functions |
-| **Deployment** | Vercel / Docker |
+| **Backend** | Supabase (PostgreSQL + Auth + Row Level Security) |
+| **Payments** | Razorpay (online), Cash on Delivery |
+| **Notifications** | WhatsApp Business API, Google Sheets via Apps Script webhook |
+| **Deployment** | Vercel (recommended), Docker |
 
 ---
 
@@ -60,50 +63,59 @@ The storefront is a single-page React application with a luxurious dark/light th
 
 ```
 ellaura.in/
-├── public/                     # Static assets
-│   └── favicon.svg
+├── public/
+│   ├── favicon.svg
+│   └── 404.html                # SPA fallback for direct URL access
 ├── src/
-│   ├── components/             # Reusable UI components
+│   ├── components/
 │   │   ├── AIStylist.jsx       # AI chat widget (Ella)
 │   │   ├── CartSidebar.jsx     # Slide-out cart drawer
 │   │   ├── Header.jsx          # Navigation header
 │   │   ├── Hero.jsx            # Landing hero section
 │   │   ├── ProductGallery.jsx  # Main product grid
-│   │   ├── ProductModal.jsx    # Product detail quick-view
+│   │   ├── ProductModal.jsx    # Product detail + Custom Fit form
 │   │   ├── SearchModal.jsx     # Search overlay
 │   │   └── Toast.jsx           # Toast notifications
 │   ├── context/
-│   │   └── AppContext.jsx      # Global state (cart, auth, UI)
+│   │   └── AppContext.jsx      # Global state — cart, auth, wishlist, UI
 │   ├── lib/
-│   │   ├── products.js         # Product data & helpers
-│   │   └── supabase.js         # Supabase client + demo mode
+│   │   ├── products.js         # Product catalogue, size charts, filters
+│   │   ├── razorpay.js         # Razorpay checkout integration
+│   │   └── supabase.js         # Supabase client, demo mode, notifications
 │   ├── pages/
 │   │   ├── AdminPage.jsx       # Admin dashboard
 │   │   ├── CheckoutPage.jsx    # Checkout flow
+│   │   ├── ComingSoonPage.jsx  # Pre-launch waitlist page
 │   │   ├── HomePage.jsx        # Landing page
 │   │   ├── LoginPage.jsx       # Auth page
 │   │   ├── LookbookPage.jsx    # Editorial lookbook
 │   │   ├── NotFoundPage.jsx    # 404 page
-│   │   └── OrderSuccessPage.jsx# Order confirmation
-│   ├── App.jsx                 # Root app component & routes
+│   │   ├── OrdersPage.jsx      # Order history
+│   │   └── OrderSuccessPage.jsx
+│   ├── App.jsx                 # Root component & routes
+│   ├── coming-soon-entry.jsx   # Entry point for coming-soon build
 │   ├── main.jsx                # React entry point
 │   └── index.css               # Global styles & design tokens
+├── scripts/
+│   ├── coming-soon.js          # Toggles coming-soon mode in App.jsx
+│   └── fresh-start.sql         # Wipes Supabase data (dev/reset use only)
 ├── supabase/
-│   └── functions/              # Supabase Edge Functions
-│       ├── ai-stylist/         # AI styling recommendations
-│       └── create-payment-intent/ # Stripe payment intent
+│   └── functions/              # Edge Functions (deploy when needed)
+│       ├── ai-stylist/
+│       ├── create-payment-intent/
+│       ├── create-phonepe-payment/
+│       └── create-shiprocket-order/
 ├── docker/
-│   └── nginx.conf              # Nginx config for Docker
+│   └── nginx.conf              # Nginx SPA config for Docker
 ├── .env.example                # Environment variable template
-├── supabase_schema.sql         # Database schema (safe to re-run)
-├── Dockerfile                  # Production Docker image
-├── docker-compose.yml          # Docker Compose for local dev
-├── index.html                  # HTML entry point
-├── tailwind.config.js          # Tailwind CSS configuration
-├── postcss.config.js           # PostCSS configuration
-├── vite.config.js              # Vite build configuration
-├── vercel.json                 # Vercel deployment config
-└── package.json                # Dependencies & scripts
+├── supabase_schema.sql         # Full DB schema — safe to re-run
+├── coming-soon.html            # Standalone coming-soon HTML entry
+├── Dockerfile                  # Multi-stage production Docker image
+├── docker-compose.yml          # Docker Compose for local testing
+├── vite.config.js              # Vite build config (with code splitting)
+├── vite-cs.config.js           # Vite config for coming-soon build
+├── vercel.json                 # Vercel headers, rewrites, caching
+└── package.json
 ```
 
 ---
@@ -113,10 +125,9 @@ ellaura.in/
 ### Prerequisites
 
 - **Node.js** ≥ 18
-- **npm** ≥ 9 (or yarn/pnpm)
-- *(Optional)* Docker & Docker Compose
+- **npm** ≥ 9
 
-### 1. Clone the repository
+### 1. Clone
 
 ```bash
 git clone https://github.com/Md-javid/ELLAURA.git
@@ -135,107 +146,89 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials. **The app works in Demo Mode without any real keys** — you only need real credentials when you're ready to go live.
+Edit `.env` — the app runs in **Demo Mode** without real credentials, so you can explore everything locally right away.
 
-| Variable | Required? | Description |
-|----------|-----------|-------------|
-| `VITE_SUPABASE_URL` | Optional | Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Optional | Supabase anon/public key |
-| `VITE_STRIPE_PUBLISHABLE_KEY` | Optional | Stripe publishable key |
-| `VITE_ADMIN_PIN` | Optional | 6-digit admin PIN (default: `230703`) |
-| `VITE_APP_URL` | Optional | Your production domain |
-
-### 4. Start the development server
+### 4. Start the dev server
 
 ```bash
 npm run dev
 ```
 
-Open **http://localhost:5173** in your browser. 🎉
+Open **http://localhost:5173** 🎉
 
 ---
 
-## 🐳 Docker
+## 🔑 Environment Variables
 
-### Quick Run (Production Build)
-
-```bash
-# Build the image
-docker build -t ellaura .
-
-# Run the container
-docker run -p 8080:80 ellaura
-```
-
-Open **http://localhost:8080**
-
-### Docker Compose (Recommended)
-
-```bash
-# Build and start
-docker-compose up --build
-
-# Run in background
-docker-compose up -d --build
-
-# Stop
-docker-compose down
-```
-
-Open **http://localhost:8080**
-
-### Environment Variables in Docker
-
-Pass environment variables at build time:
-
-```bash
-docker build \
-  --build-arg VITE_SUPABASE_URL=https://your-project.supabase.co \
-  --build-arg VITE_SUPABASE_ANON_KEY=your-key \
-  --build-arg VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxx \
-  -t ellaura .
-```
-
-Or use a `.env` file with Docker Compose (already configured in `docker-compose.yml`).
+| Variable | Required for live | Description |
+|----------|------------------|-------------|
+| `VITE_SUPABASE_URL` | ✅ | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | ✅ | Supabase anon/public key |
+| `VITE_RAZORPAY_KEY_ID` | ✅ | Razorpay live key (`rzp_live_...`) |
+| `VITE_ADMIN_EMAIL` | ✅ | Admin login email |
+| `VITE_ADMIN_PASSWORD` | ✅ | Admin login password |
+| `VITE_APP_URL` | ✅ | `https://ellaura.in` |
+| `VITE_SHEETS_WEBHOOK_URL` | Recommended | Google Apps Script webhook for order sync |
+| `VITE_WHATSAPP_NUMBER` | Recommended | WhatsApp Business number (e.g. `919XXXXXXXXX`) |
+| `VITE_DEMO_MODE` | — | Set `false` in production |
 
 ---
 
 ## 🗄️ Supabase Setup
 
-> **Skip this section if you want to run in Demo Mode** — the app works fully without Supabase.
+> Skip if running in Demo Mode — the app works fully without Supabase locally.
 
 1. Create a free project at [app.supabase.com](https://app.supabase.com)
-2. Go to **Settings → API** and copy your **Project URL** and **anon key**
-3. Paste them into `.env`:
-   ```
-   VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
-   VITE_SUPABASE_ANON_KEY=eyJhbGciOi...
-   ```
-4. Open **SQL Editor → New Query** and paste the contents of `supabase_schema.sql`, then click **Run**
-5. *(Optional)* Deploy Edge Functions:
-   ```bash
-   supabase functions deploy ai-stylist
-   supabase functions deploy create-payment-intent
-   supabase secrets set OPENAI_API_KEY=sk-...
-   supabase secrets set STRIPE_SECRET_KEY=sk_test_...
-   ```
+2. Go to **Settings → API** → copy **Project URL** and **anon key** into `.env`
+3. Go to **SQL Editor → New Query**, paste the contents of `supabase_schema.sql`, click **Run**
+   - ✅ Safe to re-run — all statements use `IF NOT EXISTS`
+   - Creates: `profiles`, `orders`, `cart_items`, `addresses`, `products`, `wishlists`, `reviews`, `coupons`, `waitlist`
+4. Go to **Authentication → URL Configuration** → set Site URL to `https://ellaura.in`
 
 ---
 
-## 💳 Stripe Setup
+## 💳 Razorpay Setup
 
-> **Skip this if you want to run in Demo Mode.**
+1. Create an account at [razorpay.com](https://razorpay.com)
+2. Go to **Settings → API Keys** → generate a **Live Key**
+3. Add to `.env`:
+   ```
+   VITE_RAZORPAY_KEY_ID=rzp_live_xxxxxxxxxxxxxxxx
+   ```
 
-1. Create an account at [dashboard.stripe.com](https://dashboard.stripe.com)
-2. Go to **Developers → API Keys**
-3. Copy the **publishable key** into `.env`:
-   ```
-   VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxx
-   ```
-4. Set the **secret key** as a Supabase secret:
-   ```bash
-   supabase secrets set STRIPE_SECRET_KEY=sk_test_xxxxxxxx
-   ```
+> Test mode: use `rzp_test_...` key locally. Switch to `rzp_live_...` before going live.
+
+---
+
+## 📲 Coming Soon Mode
+
+Toggle a full-screen waitlist page before your public launch:
+
+```bash
+# Enable coming-soon mode
+npm run coming-soon:on
+
+# Run the coming-soon dev server (port 4000)
+npm run coming-soon
+
+# Disable and switch back to main app
+npm run coming-soon:off
+```
+
+---
+
+## 🐳 Docker
+
+```bash
+# Build and run
+docker-compose up --build
+
+# Or manually
+docker build -t ellaura .
+docker run -p 8080:80 ellaura
+```
+
+Open **http://localhost:8080**
 
 ---
 
@@ -243,10 +236,11 @@ Or use a `.env` file with Docker Compose (already configured in `docker-compose.
 
 ### Vercel (Recommended)
 
-1. Push the code to GitHub
-2. Import the repo in [vercel.com](https://vercel.com)
-3. Add environment variables in **Settings → Environment Variables**
-4. Deploy — Vercel auto-detects Vite and builds accordingly
+1. Push code to GitHub
+2. Import the repo at [vercel.com](https://vercel.com)
+3. Add all environment variables in **Settings → Environment Variables**
+4. Deploy — Vercel auto-detects Vite (`npm run build` → `dist/`)
+5. Add your domain in **Settings → Domains** and point DNS to Vercel
 
 ### Docker (Any Cloud)
 
@@ -255,21 +249,19 @@ docker build -t ellaura .
 docker run -p 80:80 ellaura
 ```
 
-Works on AWS ECS, Google Cloud Run, Azure Container Apps, DigitalOcean App Platform, Fly.io, Railway, etc.
+Works on AWS ECS, Google Cloud Run, DigitalOcean App Platform, Fly.io, Railway, etc.
 
 ---
 
 ## 🧪 Demo Mode
 
-When Supabase credentials are missing or invalid, the app automatically switches to **Demo Mode**:
+When Supabase credentials are absent or invalid, the app auto-switches to Demo Mode:
 
-- ✅ Full UI browsing & interactions
-- ✅ Cart persists in localStorage
-- ✅ Mock sign up / sign in (localStorage)
-- ✅ Hardcoded demo coupons: `ELLAURA10`, `LAUNCH20`, `BANDRA500`, `VIP15`
-- ✅ AI Stylist works with built-in responses
-- ⚠️ No real payment processing
-- ⚠️ No persistent user data across devices
+- ✅ Full browsing, cart, wishlist
+- ✅ Mock sign up / sign in via localStorage
+- ✅ Demo coupons: `ELLAURA10`, `LAUNCH20`, `BANDRA500`, `VIP15`
+- ✅ AI Stylist with built-in responses
+- ⚠️ No real payments or persistent data across devices
 
 ---
 
@@ -277,31 +269,22 @@ When Supabase credentials are missing or invalid, the app automatically switches
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start Vite dev server on port 5173 |
+| `npm run dev` | Dev server on port 5173 |
 | `npm run build` | Production build to `dist/` |
-| `npm run preview` | Preview the production build locally |
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+| `npm run preview` | Preview production build locally |
+| `npm run coming-soon` | Coming-soon dev server on port 4000 |
+| `npm run coming-soon:on` | Enable coming-soon gate in App.jsx |
+| `npm run coming-soon:off` | Disable coming-soon gate in App.jsx |
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
 <p align="center">
-  <strong>Made with ❤️ by the Ellaura team</strong><br/>
+  <strong>Made with ❤️ for Ellaura</strong><br/>
   <a href="https://ellaura.in">ellaura.in</a>
 </p>

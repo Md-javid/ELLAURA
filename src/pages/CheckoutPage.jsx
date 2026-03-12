@@ -1,19 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, ShoppingBag, MapPin, Phone, User, Mail, Lock, CheckCircle, Tag, X as XIcon, Package, ChevronDown, CreditCard, Wallet } from 'lucide-react'
+import { ArrowLeft, ShoppingBag, MapPin, Phone, User, Mail, Lock, CheckCircle, Tag, X as XIcon, Package, CreditCard } from 'lucide-react'
 import { useCart, useAuth, useUI } from '../context/AppContext'
-import { createOrder, decrementProductStock, getSavedAddresses, saveAddress, sendWhatsAppOrderNotification } from '../lib/supabase'
-import { checkPincodeServiceability, buildShiprocketOrderPayload } from '../lib/shiprocket'
+import { createOrder, decrementProductStock, getSavedAddresses, saveAddress, sendWhatsAppOrderNotification, sendOrderToGoogleSheets, validateCoupon, incrementCouponUse } from '../lib/supabase'
 import { openRazorpayCheckout } from '../lib/razorpay'
-
-// ── Coupon definitions ─────────────────────────────────────────
-const COUPONS = {
-  'ELLAURA10': { type: 'percent', value: 10, label: '10% off — Welcome' },
-  'LAUNCH20':  { type: 'percent', value: 20, label: '20% off — Launch Offer' },
-  'BANDRA500': { type: 'fixed',   value: 500, label: '₹500 off — Bandra Special' },
-  'VIP15':     { type: 'percent', value: 15, label: '15% VIP Discount' },
-  'FREESHIP':  { type: 'fixed',   value: 0,  label: 'Free Shipping (already free!)' },
-}
 
 export default function CheckoutPage() {
   const { items, cartTotal, clearCart } = useCart()
@@ -27,10 +17,9 @@ export default function CheckoutPage() {
   const [couponInput, setCouponInput] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState(null)
   const [couponError, setCouponError] = useState('')
+  const [couponLoading, setCouponLoading] = useState(false)
   const [savedAddresses, setSavedAddresses] = useState([])
   const [saveAddrChecked, setSaveAddrChecked] = useState(true)
-  const [serviceability, setServiceability] = useState({ checked: false, available: true, estimatedDays: null, courierName: null })
-  const [paymentMethod, setPaymentMethod] = useState('cod') // 'cod' | 'online'
 
   const discountAmount = appliedCoupon
     ? appliedCoupon.type === 'percent'
@@ -39,17 +28,19 @@ export default function CheckoutPage() {
     : 0
   const finalTotal = Math.max(0, cartTotal - discountAmount)
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     const code = couponInput.trim().toUpperCase()
     if (!code) return
-    const coupon = COUPONS[code]
-    if (!coupon) {
-      setCouponError('Invalid coupon code. Try ELLAURA10 for 10% off!')
+    setCouponLoading(true)
+    setCouponError('')
+    const result = await validateCoupon(code, cartTotal)
+    setCouponLoading(false)
+    if (!result.valid) {
+      setCouponError(result.error || 'Invalid coupon code.')
       setAppliedCoupon(null)
       return
     }
-    setAppliedCoupon({ ...coupon, code })
-    setCouponError('')
+    setAppliedCoupon(result)
     setCouponInput('')
   }
 
@@ -95,51 +86,11 @@ export default function CheckoutPage() {
       if (!shipping[f].trim()) return setError(`Please fill in your ${f.replace(/([A-Z])/g, ' $1').toLowerCase()}.`)
     }
     if (shipping.pincode.length !== 6) return setError('Please enter a valid 6-digit PIN code.')
+    // Validate Indian mobile number (10 digits, starts with 6-9)
+    const phoneDigits = shipping.phone.replace(/\D/g, '').replace(/^91/, '')
+    if (!/^[6-9]\d{9}$/.test(phoneDigits)) return setError('Please enter a valid 10-digit Indian mobile number.')
     setError('')
-    // Check Shiprocket serviceability in background (non-blocking)
-    checkPincodeServiceability(shipping.pincode).then(svc =>
-      setServiceability({ ...svc, checked: true })
-    )
     setStep('payment')
-  }
-
-  const handleCODOrder = async () => {
-    setError('')
-    setLoading(true)
-    setStep('processing')
-
-    const orderId = `ELLAURA_${Date.now()}`
-    const orderItems = items.map(i => ({
-      product: { id: i.product.id, name: i.product.name, price: i.product.price, img: i.product.img },
-      qty: i.qty,
-      size: i.size,
-    }))
-
-    try {
-      const order = await createOrder({
-        userId: user?.id || null,
-        items: orderItems,
-        subtotal: cartTotal,
-        total: finalTotal,
-        shippingAddress: shipping,
-        stripePaymentIntentId: 'COD',
-      }).catch(() => ({ id: orderId }))
-
-      await Promise.all(items.map(i => decrementProductStock(i.product.id, i.qty)))
-
-      if (saveAddrChecked && user?.id) await saveAddress(user.id, shipping)
-
-      sendWhatsAppOrderNotification({ orderId: order.id || orderId, items: orderItems, total: finalTotal, shipping })
-
-      clearCart()
-      showToast('Order placed! Pay on delivery 🎉', 'success')
-      navigate('/order-success', { state: { orderId: order.id || orderId, shipping, total: finalTotal } })
-    } catch (err) {
-      setError(err.message || 'Order creation failed. Contact support.')
-      setStep('payment')
-    } finally {
-      setLoading(false)
-    }
   }
 
   const handleOnlinePayment = async () => {
@@ -151,6 +102,7 @@ export default function CheckoutPage() {
       product: { id: i.product.id, name: i.product.name, price: i.product.price, img: i.product.img },
       qty: i.qty,
       size: i.size,
+      measurements: i.measurements || null,
     }))
     const onSuccess = async (paymentResponse) => {
       try {
@@ -162,9 +114,14 @@ export default function CheckoutPage() {
           shippingAddress: shipping,
           stripePaymentIntentId: paymentResponse.razorpay_payment_id || paymentResponse.paymentId || orderId,
         }).catch(() => ({ id: orderId }))
+
         await Promise.all(items.map(i => decrementProductStock(i.product.id, i.qty)))
         if (saveAddrChecked && user?.id) await saveAddress(user.id, shipping)
-        sendWhatsAppOrderNotification({ orderId: order.id || orderId, items: orderItems, total: finalTotal, shipping })
+        if (appliedCoupon?.code) await incrementCouponUse(appliedCoupon.code)
+
+        sendOrderToGoogleSheets({ orderId: order.id || orderId, items: orderItems, total: finalTotal, shipping, paymentMethod: 'Razorpay' })
+        sendWhatsAppOrderNotification({ orderId: order.id || orderId, items: orderItems, total: finalTotal, shipping, userId: user?.id, paymentMethod: 'Razorpay' })
+
         clearCart()
         showToast('Payment received! Order confirmed 🎉', 'success')
         navigate('/order-success', { state: { orderId: order.id || orderId, shipping, total: finalTotal } })
@@ -196,7 +153,7 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen pt-24 pb-16 px-4">
       <div className="max-w-5xl mx-auto">
-        
+
         {/* Back */}
         <Link to="/" className="inline-flex items-center gap-1.5 text-[13px] text-white/40 hover:text-white/70 transition-colors mb-8">
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -204,7 +161,7 @@ export default function CheckoutPage() {
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-12">
-          
+
           {/* ── Left: Forms ── */}
           <div>
             {/* Steps indicator */}
@@ -290,7 +247,7 @@ export default function CheckoutPage() {
                       <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Phone *</label>
                       <div className={wrapClass}>
                         <Phone className="w-4 h-4 text-white/30 flex-shrink-0" />
-                        <input type="tel" placeholder="+91 XXXXXXXXXX" value={shipping.phone} onChange={setS('phone')} className={inputClass} />
+                        <input type="tel" placeholder="10-digit mobile number" value={shipping.phone} onChange={setS('phone')} className={inputClass} maxLength={13} />
                       </div>
                     </div>
                     <div className="sm:col-span-2">
@@ -350,14 +307,14 @@ export default function CheckoutPage() {
               </form>
             )}
 
-            {/* ── Confirm & Place Order (Cash on Delivery) ── */}
+            {/* ── Payment Step ── */}
             {step === 'payment' && (
               <div className="space-y-5 animate-fadeIn">
                 <div>
-                  <h2 className="font-serif text-xl font-semibold text-white/90 mb-1">Confirm Order</h2>
-                  <p className="text-[13px] text-white/40 mb-4">Review and place your order — pay cash when it arrives.</p>
+                  <h2 className="font-serif text-xl font-semibold text-white/90 mb-1">Secure Payment</h2>
+                  <p className="text-[13px] text-white/40 mb-6">Pay securely via UPI, Cards, Net Banking or Wallets.</p>
 
-                  {/* Delivery destination + Shiprocket estimate */}
+                  {/* Delivery info */}
                   {shipping.city && (
                     <div className="glass rounded-2xl border border-white/10 p-4 mb-5">
                       <div className="flex items-center gap-3">
@@ -366,95 +323,87 @@ export default function CheckoutPage() {
                         </div>
                         <div>
                           <p className="text-[13px] font-medium text-white/80">Shipping to {shipping.city}, {shipping.state}</p>
-                          <p className="text-[11px] text-white/40">
-                            {serviceability.checked && serviceability.estimatedDays
-                              ? `Est. ${serviceability.estimatedDays} business days via ${serviceability.courierName || 'courier'}`
-                              : '2–5 business days via Shiprocket'}
-                          </p>
+                          <p className="text-[11px] text-white/40">2–5 business days · Free shipping</p>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Payment method selector */}
-                  <div className="space-y-3">
-                    <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block">Select Payment Method</label>
-
-                    {/* COD option */}
-                    <div
-                      onClick={() => setPaymentMethod('cod')}
-                      className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                        paymentMethod === 'cod'
-                          ? 'glass-premium border-emerald-500/40 shadow-lg shadow-emerald-500/10'
-                          : 'glass border-white/10 hover:border-white/20'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                          paymentMethod === 'cod' ? 'bg-gradient-to-br from-emerald-600 to-emerald-800' : 'bg-white/5'
-                        }`}>
-                          <Package className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-white/90 text-[14px]">Cash on Delivery</p>
-                          <p className="text-[11px] text-white/40">Pay when your order arrives</p>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                          paymentMethod === 'cod' ? 'border-emerald-400' : 'border-white/20'
-                        }`}>
-                          {paymentMethod === 'cod' && <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />}
+                  {/* Payment method card */}
+                  <div className="glass-premium rounded-2xl border border-[#b76e79]/30 p-5 shadow-lg shadow-[#b76e79]/5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#b76e79] to-purple-700 flex items-center justify-center">
+                        <CreditCard className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-white/90 text-[15px]">Pay Online</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {['UPI', 'Cards', 'Net Banking', 'Wallets'].map(t => (
+                            <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/50 border border-white/10">{t}</span>
+                          ))}
                         </div>
                       </div>
+                      <div className="w-5 h-5 rounded-full border-2 border-[#b76e79] flex items-center justify-center">
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#b76e79]" />
+                      </div>
                     </div>
+                  </div>
 
-                    {/* Online payment option */}
-                    <div
-                      onClick={() => setPaymentMethod('online')}
-                      className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                        paymentMethod === 'online'
-                          ? 'glass-premium border-[#b76e79]/40 shadow-lg shadow-[#b76e79]/10'
-                          : 'glass border-white/10 hover:border-white/20'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                          paymentMethod === 'online' ? 'bg-gradient-to-br from-[#b76e79] to-purple-700' : 'bg-white/5'
-                        }`}>
-                          <CreditCard className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-white/90 text-[14px]">Pay Online</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {['UPI', 'Cards', 'Net Banking', 'Wallets'].map(t => (
-                              <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/40 border border-white/10">{t}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                          paymentMethod === 'online' ? 'border-[#b76e79]' : 'border-white/20'
-                        }`}>
-                          {paymentMethod === 'online' && <div className="w-2.5 h-2.5 rounded-full bg-[#b76e79]" />}
+                  {/* Why no COD — warm, trustworthy explanation */}
+                  <div className="glass rounded-2xl border border-amber-500/15 bg-amber-500/5 p-5 mt-6">
+                    <div className="flex gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        {/* Needle & thread icon */}
+                        <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3l4 4M17 3a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4z"/>
+                          <path d="M13.5 6.5L7 13l-4 8 8-4 6.5-6.5"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-[12px] font-semibold text-amber-300/90 mb-1.5 flex items-center gap-1.5">
+                          Why only online payment? We'll explain.
+                        </p>
+                        <p className="text-[12px] text-white/50 leading-relaxed">
+                          Every Ellaura piece is <span className="text-white/75 font-medium">hand-stitched to order</span> — crafted personally by our artisans in Coimbatore, just for you. Unlike mass-produced garments, your outfit starts being made <span className="text-white/75 font-medium">the moment you place your order</span>.
+                        </p>
+                        <p className="text-[12px] text-white/50 leading-relaxed mt-2">
+                          Cash on Delivery isn't possible because a last-minute cancellation at the doorstep would mean hours of artisan work and premium fabric go to waste — a loss we cannot absorb while keeping our prices fair and quality uncompromised.
+                        </p>
+                        <p className="text-[12px] text-white/50 leading-relaxed mt-2">
+                          We hope you understand — this is how we protect both the artisan's effort and your right to an affordable, beautifully made garment. 🤍
+                        </p>
+                        {/* Promise strip */}
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {[
+                            { icon: '✦', text: 'Easy returns within 7 days' },
+                            { icon: '✦', text: '100% secure payment' },
+                            { icon: '✦', text: 'WhatsApp support anytime' },
+                          ].map(({ icon, text }) => (
+                            <span key={text} className="inline-flex items-center gap-1 text-[10px] text-amber-300/60 bg-amber-500/8 border border-amber-500/15 rounded-full px-2.5 py-1">
+                              <span className="text-amber-400/70">{icon}</span> {text}
+                            </span>
+                          ))}
                         </div>
                       </div>
                     </div>
                   </div>
+
                 </div>
 
                 {error && <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5">{error}</p>}
 
                 <button
-                  onClick={paymentMethod === 'online' ? handleOnlinePayment : handleCODOrder}
+                  onClick={handleOnlinePayment}
                   disabled={loading}
                   className="w-full btn-liquid rounded-2xl py-4 text-[15px] font-semibold text-white tracking-wide flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
                 >
-                  {paymentMethod === 'online'
-                    ? <><CreditCard className="w-4 h-4" />{loading ? 'Opening Payment…' : `Pay ${formatPrice(finalTotal)} Online`}</>
-                    : <><Package className="w-4 h-4" />{loading ? 'Placing Order…' : `Place Order — Pay ${formatPrice(finalTotal)} on Delivery`}</>}
+                  <CreditCard className="w-4 h-4" />
+                  {loading ? 'Opening Payment…' : `Pay ${formatPrice(finalTotal)} Securely`}
                 </button>
 
                 <p className="text-center text-[11px] text-white/20 flex items-center justify-center gap-1.5">
                   <Lock className="w-3 h-3" />
-                  {paymentMethod === 'online' ? 'Secured by Razorpay · SSL Encrypted' : 'Cash on Delivery · Shipped via Shiprocket'}
+                  Secured by Razorpay · SSL Encrypted · 100% Safe
                 </p>
 
                 <button type="button" onClick={() => setStep('shipping')} className="w-full text-center text-[12px] text-white/25 hover:text-white/50 transition-colors">
@@ -470,7 +419,7 @@ export default function CheckoutPage() {
                   <Lock className="w-7 h-7 text-white" />
                 </div>
                 <div className="text-center">
-                  <p className="font-serif text-xl text-white/90 mb-2">Processing your order...</p>
+                  <p className="font-serif text-xl text-white/90 mb-2">Processing your payment...</p>
                   <p className="text-[13px] text-white/40">Please don't close this window</p>
                 </div>
                 <div className="flex gap-2">
@@ -535,9 +484,10 @@ export default function CheckoutPage() {
                         </div>
                         <button
                           onClick={handleApplyCoupon}
-                          className="btn-liquid px-4 rounded-xl text-[12px] font-semibold text-white whitespace-nowrap"
+                          disabled={couponLoading || !couponInput.trim()}
+                          className="btn-liquid px-4 rounded-xl text-[12px] font-semibold text-white whitespace-nowrap disabled:opacity-50"
                         >
-                          Apply
+                          {couponLoading ? '…' : 'Apply'}
                         </button>
                       </div>
                       {couponError && <p className="text-[10px] text-red-400/80 mt-1.5 px-1">{couponError}</p>}
@@ -577,13 +527,9 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                {/* Payment method badge */}
                 <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-white/20">
-                  <Package className="w-3 h-3" />
-                  <span>Cash on Delivery</span>
-                  <span>·</span>
-                  <Package className="w-3 h-3" />
-                  <span>Shipped via Shiprocket</span>
+                  <Lock className="w-3 h-3" />
+                  <span>Razorpay · SSL Secured</span>
                 </div>
               </div>
             </div>
@@ -593,3 +539,4 @@ export default function CheckoutPage() {
     </div>
   )
 }
+

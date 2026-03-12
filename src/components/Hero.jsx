@@ -1,17 +1,37 @@
 import { useState, useEffect } from 'react'
 import { ChevronDown, ArrowRight } from 'lucide-react'
 import { getLiveProducts } from '../lib/products'
+import { getProducts } from '../lib/supabase'
+import { useUI } from '../context/AppContext'
 
 function HeroFeaturedCard({ loaded, onExplore }) {
-  const liveProducts = getLiveProducts()
-  const featured = liveProducts[0]
+  const [featured, setFeatured] = useState(null)
+  const { setProductModal } = useUI()
+
+  useEffect(() => {
+    getProducts().then(dbProducts => {
+      const list = (dbProducts && dbProducts.length > 0)
+        ? dbProducts.filter(p => p.active !== false)
+        : getLiveProducts()
+      setFeatured(list[0] || null)
+    }).catch(() => {
+      setFeatured(getLiveProducts()[0] || null)
+    })
+  }, [])
+
   if (!featured) return null
 
   return (
     <div className={`hidden lg:flex justify-center items-center transition-all duration-1000 delay-300 ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
       <div className="relative animate-float">
         <div className="absolute -inset-6 rounded-[36px] bg-[#b76e79]/15 blur-3xl" />
-        <div className="relative glass rounded-[32px] border border-white/10 overflow-hidden w-72 shadow-2xl">
+        <div
+          className="relative glass rounded-[32px] border border-white/10 overflow-hidden w-72 shadow-2xl cursor-pointer"
+          onClick={() => setProductModal(featured)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => e.key === 'Enter' && setProductModal(featured)}
+        >
           <img
             src={featured.img}
             alt={featured.name}
@@ -26,7 +46,7 @@ function HeroFeaturedCard({ loaded, onExplore }) {
                 <p className="text-[#e8a0a8] text-sm font-medium mt-0.5">{featured.priceDisplay}</p>
               </div>
               <button
-                onClick={onExplore}
+                onClick={e => { e.stopPropagation(); onExplore() }}
                 className="w-10 h-10 rounded-xl btn-liquid flex items-center justify-center flex-shrink-0"
               >
                 <ArrowRight className="w-4 h-4 text-white" />
@@ -52,7 +72,7 @@ export default function Hero() {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const bgUrl = 'https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=1600&q=80&auto=format&fit=crop'
+  const bgUrl = '/hero-bg.jpeg'
 
   return (
     <section className="relative min-h-screen w-full flex flex-col" style={{ overflowX: 'clip', touchAction: 'pan-y' }}>
@@ -60,9 +80,9 @@ export default function Hero() {
       <div className="absolute inset-0 pointer-events-none">
         <img
           src={bgUrl}
-          alt="City Night"
+          alt="Fashion Editorial"
           className="w-full h-full object-cover"
-          style={{ filter: 'blur(3px) brightness(0.38) saturate(1.3)' }}
+          style={{ filter: 'blur(2px) brightness(0.55) saturate(1.2)' }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-[#050508]" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#050508]/60 via-transparent to-transparent" />
@@ -78,21 +98,21 @@ export default function Hero() {
           {/* ── Left: Text ── */}
           <div className={`transition-all duration-700 ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             {/* Headline */}
-            <h1 className="font-serif leading-[1.08] mb-6 pb-1">
+            <h1 className="font-serif leading-[1.18] mb-6 pb-1">
               <span className="block text-[clamp(3rem,8vw,5.5rem)] font-bold text-rose-gold">
-                Own The
+                Own Every
               </span>
               <span className="block text-[clamp(3rem,8vw,5.5rem)] font-bold text-rose-gold pb-2">
-                Night.
+                Moment.
               </span>
-              <span className="block text-[clamp(1.3rem,3vw,1.8rem)] font-light font-sans text-white/85 mt-4 tracking-wide">
-                Custom fits for city lights.
+              <span className="block text-[clamp(1.1rem,2.5vw,1.5rem)] font-serif font-light text-white/70 mt-5 tracking-[0.08em] italic">
+                Custom fits for every occasion.
               </span>
             </h1>
 
             <p className="text-[15px] sm:text-base text-white/60 leading-relaxed mb-10 max-w-md font-light">
-              Bespoke silhouettes crafted for rooftops, lounges &amp; dance floors.
-              Every piece, exclusively yours — stitched in Coimbatore, delivered in 48&nbsp;hours.
+              Bespoke western &amp; occasion wear crafted for brunches, events &amp; evenings out.
+              Every piece, exclusively yours — stitched in Coimbatore.
             </p>
 
             {/* CTAs */}

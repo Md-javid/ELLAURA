@@ -105,7 +105,8 @@ export default function CartSidebar() {
                           <span className="text-[13px] font-medium text-white/80 w-4 text-center">{qty}</span>
                           <button
                             onClick={() => updateQty(product.id, size, qty + 1)}
-                            className="w-7 h-7 rounded-lg glass border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90"
+                            disabled={qty >= product.stock}
+                            className="w-7 h-7 rounded-lg glass border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Plus className="w-3 h-3 text-white/60" />
                           </button>
@@ -135,7 +136,7 @@ export default function CartSidebar() {
                   <span className="text-emerald-400 font-medium">Free</span>
                 </div>
                 <div className="flex justify-between text-[13px]">
-                  <span className="text-white/50">Delivery (48h)</span>
+                  <span className="text-white/50">Express Delivery</span>
                   <span className="text-emerald-400 font-medium">Free</span>
                 </div>
                 <div className="border-t border-white/8 pt-2 flex justify-between">

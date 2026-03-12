@@ -55,7 +55,7 @@ export default function SearchModal({ onClose }) {
               <Search className="w-8 h-8 mx-auto mb-3 opacity-30" />
               <p className="text-sm">Start typing to search our collection</p>
               <div className="flex flex-wrap justify-center gap-2 mt-4">
-                {['Gown', 'Club Night', 'Midi', 'Black'].map(tag => (
+                {['Gown', 'Club & Party', 'Midi', 'Black'].map(tag => (
                   <button
                     key={tag}
                     onClick={() => setQuery(tag)}

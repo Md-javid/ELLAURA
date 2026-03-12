@@ -65,7 +65,8 @@ function LookCard({ look, onShop }) {
 
   return (
     <article
-      className={`relative overflow-hidden ${isHero ? 'rounded-[32px]' : 'rounded-[28px]'} border border-white/5 group`}
+      onClick={() => onShop(look.product)}
+      className={`relative overflow-hidden cursor-pointer ${isHero ? 'rounded-[32px]' : 'rounded-[28px]'} border border-white/5 group`}
       style={{ background: `linear-gradient(135deg, ${look.bgGradient.replace('from-','').replace(' via-',' ').replace(' to-','')})` }}
     >
       {/* Ambient glow */}
@@ -91,7 +92,7 @@ function LookCard({ look, onShop }) {
 
           {/* Like */}
           <button
-            onClick={() => setLiked(l => !l)}
+            onClick={e => { e.stopPropagation(); setLiked(l => !l) }}
             className="absolute top-5 right-5 w-9 h-9 rounded-full glass border border-white/20 flex items-center justify-center transition-all active:scale-90"
           >
             <Heart className={`w-4 h-4 transition-all ${liked ? 'fill-[#e8a0a8] text-[#e8a0a8]' : 'text-white/60'}`} />
@@ -104,7 +105,7 @@ function LookCard({ look, onShop }) {
               <p className="text-[13px] text-white/55 leading-relaxed mb-5 max-w-md">{look.description}</p>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => onShop(look.product)}
+                  onClick={e => { e.stopPropagation(); onShop(look.product) }}
                   className="btn-liquid px-6 py-3 rounded-2xl text-[13px] font-semibold text-white flex items-center gap-2 active:scale-95 transition-transform"
                 >
                   <ShoppingBag className="w-4 h-4" />
@@ -133,7 +134,7 @@ function LookCard({ look, onShop }) {
             </div>
 
             <button
-              onClick={() => onShop(look.product)}
+              onClick={e => { e.stopPropagation(); onShop(look.product) }}
               className="btn-liquid w-full py-3.5 rounded-2xl text-[14px] font-semibold text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
             >
               <ShoppingBag className="w-4 h-4" />
@@ -187,7 +188,7 @@ export default function LookbookPage() {
           </h2>
           <p className="text-[14px] text-white/40 max-w-xl mx-auto leading-relaxed">
             {LOOKS.length > 0
-              ? 'Wearable stories crafted in Mumbai, tailored to you within 48 hours. Each piece custom stitched, every silhouette a statement.'
+              ? 'Wearable stories crafted in Mumbai, tailored just for you. Each piece handcrafted, every silhouette a statement.'
               : 'Our editorial collection is being curated. Check back soon for stunning looks.'}
           </p>
         </div>

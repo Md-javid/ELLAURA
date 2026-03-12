@@ -24,7 +24,6 @@ export const COLOR_SWATCHES = {
 // Products will be added via the Admin panel before launch.
 // Keep this array empty until the collection is ready.
 export const PRODUCTS = [
-  /*
   {
     id: 'EL001',
     name: 'Velvet Luxe Midi',
@@ -113,7 +112,7 @@ export const PRODUCTS = [
     priceDisplay: '₹7,600',
     category: 'bodycon',
     vibe: ['club'],
-    tag: 'Club Night',
+    tag: 'Club & Party',
     tagColor: 'from-[#818cf8] to-[#6366f1]',
     badge: 'Hot',
     rating: 4.9,
@@ -160,7 +159,6 @@ export const PRODUCTS = [
     deliveryDays: 48,
     stock: 6,
   },
-  */
 ]
 
 export const getProductById = (id) => PRODUCTS.find(p => p.id === id) || null
@@ -173,13 +171,13 @@ export const getLiveProducts = () => {
     const raw = localStorage.getItem('ellaura_admin_products')
     if (raw) {
       const saved = JSON.parse(raw)
-      const active = saved.filter(p => p.active !== false) // hide products toggled off
-      // If admin has saved products, use those; otherwise fall back to built-in collection
-      return active.length > 0 ? active : PRODUCTS
+      // Only show products that are not explicitly hidden (active !== false)
+      // If admin has ever saved a collection, never fall back to built-in defaults
+      return saved.filter(p => p.active !== false)
     }
   } catch {}
-  // No admin data yet — collection is coming soon
-  return []
+  // No admin data yet — use built-in collection
+  return PRODUCTS
 }
 
 // Returns products recently added by admin (badge === 'New' or added within last 7 days)

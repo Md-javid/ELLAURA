@@ -5,21 +5,26 @@ import {
   Save, X, Package, Eye, EyeOff, UploadCloud,
   CheckCircle, AlertTriangle, ToggleLeft, ToggleRight,
   RefreshCw, IndianRupee, Tag, Mail, KeyRound, Shirt,
+  ClipboardList, Truck, Clock, ChevronDown, MapPin, User as UserIcon, Heart,
 } from 'lucide-react'
-import { DEMO_MODE, getProducts, upsertProduct, deleteProduct } from '../lib/supabase'
+import { DEMO_MODE, getProducts, upsertProduct, deleteProduct, getAllOrders, updateOrderStatus, getWishlistSummaryDB } from '../lib/supabase'
 
 // ── Admin config ──────────────────────────────────────────────
-const ADMIN_PIN = import.meta.env.VITE_ADMIN_PIN || '123456'
-const DEFAULT_PIN = !import.meta.env.VITE_ADMIN_PIN || import.meta.env.VITE_ADMIN_PIN === '123456'
 const ADMIN_SESSION_KEY = 'ellaura_admin_session'
 const ADMIN_PRODUCTS_KEY = 'ellaura_admin_products'
-const ADMIN_ACCOUNTS_KEY = 'ellaura_admin_accounts'
+const ADMIN_ACCOUNTS_KEY = 'ellaura_admin_accounts_v2' // v2 = SHA-256 hashes
 const SESSION_TTL = 60 * 60 * 1000 // 1 hour
 
-// Default admin credentials (override via VITE_ADMIN_EMAIL / VITE_ADMIN_PASSWORD in .env)
+// Default admin credentials (set via VITE_ADMIN_EMAIL / VITE_ADMIN_PASSWORD in .env)
 const DEFAULT_ADMIN = {
   email: import.meta.env.VITE_ADMIN_EMAIL || 'admin@ellaura.in',
-  password: import.meta.env.VITE_ADMIN_PASSWORD || 'Ellaura@2026',
+  password: import.meta.env.VITE_ADMIN_PASSWORD || '',
+}
+
+// SHA-256 password hash via Web Crypto API — collision-resistant, not reversible.
+const hashPasswordAsync = async (pw) => {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw))
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 import { PRODUCTS as DEFAULT_PRODUCTS } from '../lib/products'
@@ -34,12 +39,28 @@ const loadAdminProducts = () => {
 const saveAdminProducts = (prods) =>
   localStorage.setItem(ADMIN_PRODUCTS_KEY, JSON.stringify(prods))
 
-// Load/save admin accounts
-const loadAdminAccounts = () => {
+// Load/save admin accounts — passwords are stored hashed, not plaintext
+const loadAdminAccountsAsync = async () => {
   try {
     const raw = localStorage.getItem(ADMIN_ACCOUNTS_KEY)
-    return raw ? JSON.parse(raw) : [DEFAULT_ADMIN]
-  } catch { return [DEFAULT_ADMIN] }
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      // Re-seed if the stored default email no longer matches (credentials changed in .env)
+      const hasDefault = parsed.some(a => a.email === DEFAULT_ADMIN.email)
+      if (!hasDefault) {
+        const hash = await hashPasswordAsync(DEFAULT_ADMIN.password)
+        const seed = [{ email: DEFAULT_ADMIN.email, password: hash }]
+        localStorage.setItem(ADMIN_ACCOUNTS_KEY, JSON.stringify(seed))
+        return seed
+      }
+      return parsed
+    }
+  } catch { }
+  // First run — seed with SHA-256 hashed default credentials
+  const hash = await hashPasswordAsync(DEFAULT_ADMIN.password)
+  const seed = [{ email: DEFAULT_ADMIN.email, password: hash }]
+  localStorage.setItem(ADMIN_ACCOUNTS_KEY, JSON.stringify(seed))
+  return seed
 }
 
 const saveAdminAccounts = (accs) =>
@@ -54,67 +75,74 @@ const EMPTY_PRODUCT = {
   description: '', material: '', careInstructions: '',
   sizes: ['S', 'M', 'L'],
   colors: ['Black'], deliveryDays: 48, stock: 5,
+  instagramUrl: '',
 }
 
 // ── Styles ────────────────────────────────────────────────────
 const inputCls = 'w-full bg-transparent text-white placeholder-white/20 outline-none text-[13px] py-2.5'
 const wrapCls = 'glass rounded-xl border border-white/10 px-3.5 flex items-center gap-2.5 focus-within:border-[#b76e79]/40 transition-all'
 
+// ── Brute-force guard ────────────────────────────────────────
+const LOCKOUT_KEY = 'ellaura_admin_lockout'
+const MAX_ATTEMPTS = 5
+const LOCKOUT_MS = 5 * 60 * 1000
+// Lockout in localStorage so it persists across tab closes
+const getAttemptData = () => { try { return JSON.parse(localStorage.getItem(LOCKOUT_KEY) || '{}') } catch { return {} } }
+const recordFail = () => {
+  const d = getAttemptData()
+  const attempts = (d.attempts || 0) + 1
+  const lockedUntil = attempts >= MAX_ATTEMPTS ? Date.now() + LOCKOUT_MS : (d.lockedUntil || 0)
+  localStorage.setItem(LOCKOUT_KEY, JSON.stringify({ attempts, lockedUntil }))
+  return { attempts, lockedUntil }
+}
+const clearAttempts = () => localStorage.removeItem(LOCKOUT_KEY)
+const getLockRemaining = () => { const d = getAttemptData(); return d.lockedUntil ? Math.max(0, Math.ceil((d.lockedUntil - Date.now()) / 1000)) : 0 }
+
 // ── Admin Login (Email/Password) ──────────────────────────────
 function AdminLogin({ onVerify }) {
-  const [mode, setMode] = useState('email') // 'email' | 'pin'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [lockSeconds, setLockSeconds] = useState(getLockRemaining)
+  const locked = lockSeconds > 0
 
-  // PIN mode state
-  const [digits, setDigits] = useState(['', '', '', '', '', ''])
-  const [shake, setShake] = useState(false)
-  const refs = useRef([])
+  // Countdown timer
+  useEffect(() => {
+    if (!locked) return
+    const id = setInterval(() => {
+      const r = getLockRemaining()
+      setLockSeconds(r)
+      if (r <= 0) clearInterval(id)
+    }, 1000)
+    return () => clearInterval(id)
+  }, [locked])
 
-  const handleEmailLogin = (e) => {
+  const handleEmailLogin = async (e) => {
     e.preventDefault()
+    if (locked) return
     setLoading(true)
     setError('')
-    setTimeout(() => {
-      const accounts = loadAdminAccounts()
-      const match = accounts.find(a => a.email === email && a.password === password)
-      if (match) {
-        const session = { ts: Date.now(), email: match.email }
-        sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
-        onVerify()
+    const accounts = await loadAdminAccountsAsync()
+    const hash = await hashPasswordAsync(password)
+    const match = accounts.find(a => a.email === email && a.password === hash)
+    if (match) {
+      clearAttempts()
+      const session = { ts: Date.now(), email: match.email }
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
+      onVerify()
+    } else {
+      const { attempts, lockedUntil } = recordFail()
+      if (lockedUntil > Date.now()) {
+        setLockSeconds(getLockRemaining())
+        setError('Too many failed attempts. Locked for 5 minutes.')
       } else {
-        setError('Invalid email or password.')
-      }
-      setLoading(false)
-    }, 500)
-  }
-
-  const handlePinChange = (i, val) => {
-    if (!/^[0-9]?$/.test(val)) return
-    const next = [...digits]
-    next[i] = val
-    setDigits(next)
-    setError('')
-    if (val && i < 5) refs.current[i + 1]?.focus()
-    if (next.every(Boolean)) {
-      const pin = next.join('')
-      if (pin === ADMIN_PIN) {
-        const session = { ts: Date.now(), method: 'pin' }
-        sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
-        onVerify()
-      } else {
-        setError('Incorrect PIN. Try again.')
-        setShake(true)
-        setTimeout(() => { setDigits(['', '', '', '', '', '']); setShake(false); refs.current[0]?.focus() }, 600)
+        const rem = MAX_ATTEMPTS - attempts
+        setError(rem > 0 ? `Invalid credentials. ${rem} attempt${rem !== 1 ? 's' : ''} remaining.` : 'Too many failed attempts.')
       }
     }
-  }
-
-  const handlePinKeyDown = (i, e) => {
-    if (e.key === 'Backspace' && !digits[i] && i > 0) refs.current[i - 1]?.focus()
+    setLoading(false)
   }
 
   return (
@@ -127,110 +155,59 @@ function AdminLogin({ onVerify }) {
         <p className="text-[13px] text-white/35 text-center">
           Sign in with your admin credentials
         </p>
-        {DEMO_MODE && (
-          <div className="mt-2 glass rounded-xl border border-amber-400/20 px-3 py-2 text-center">
-            <p className="text-[10px] text-amber-400/70">
-              Demo credentials: <span className="font-mono font-bold text-amber-400">admin@ellaura.in</span>
-            </p>
-            <p className="text-[10px] text-amber-400/70">
-              Password: <span className="font-mono font-bold text-amber-400">Ellaura@2026</span>
-            </p>
+        {locked && (
+          <div className="w-full glass rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 flex items-center gap-2.5 mt-3">
+            <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+            <div>
+              <p className="text-[12px] text-red-400 font-semibold">Too many failed attempts</p>
+              <p className="text-[11px] text-red-400/70">Try again in {Math.floor(lockSeconds / 60)}:{String(lockSeconds % 60).padStart(2, '0')}</p>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Toggle tabs */}
-      <div className="glass rounded-xl p-1 flex gap-1 w-full max-w-xs">
-        <button
-          onClick={() => setMode('email')}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all ${mode === 'email' ? 'bg-gradient-to-r from-[#b76e79]/60 to-[#8b4f5a]/60 text-white shadow' : 'text-white/40'
-            }`}
-        >
-          <Mail className="w-3 h-3" /> Email Login
-        </button>
-        <button
-          onClick={() => setMode('pin')}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium transition-all ${mode === 'pin' ? 'bg-gradient-to-r from-[#b76e79]/60 to-[#8b4f5a]/60 text-white shadow' : 'text-white/40'
-            }`}
-        >
-          <KeyRound className="w-3 h-3" /> PIN Code
-        </button>
-      </div>
-
-      {mode === 'email' ? (
-        <form onSubmit={handleEmailLogin} className="w-full max-w-xs space-y-4">
-          <div>
-            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Email</label>
-            <div className={wrapCls}>
-              <Mail className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
-              <input
-                type="email"
-                placeholder="admin@ellaura.in"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className={inputCls}
-                required
-                autoFocus
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Password</label>
-            <div className={wrapCls}>
-              <KeyRound className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className={inputCls}
-                required
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/30 hover:text-white/50">
-                {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full btn-liquid rounded-xl py-3 text-[14px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-      ) : (
+      <form onSubmit={handleEmailLogin} className="w-full max-w-xs space-y-4">
         <div>
-          {DEMO_MODE && (
-            <p className="text-[11px] text-amber-400/70 text-center mb-3">
-              Demo PIN: <span className="font-mono font-bold text-amber-400">123456</span>
-            </p>
-          )}
-          <div className={`flex gap-3 ${shake ? 'animate-[shake_0.3s_ease]' : ''}`}>
-            {digits.map((d, i) => (
-              <input
-                key={i}
-                ref={el => refs.current[i] = el}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={d}
-                onChange={e => handlePinChange(i, e.target.value)}
-                onKeyDown={e => handlePinKeyDown(i, e)}
-                className={`w-11 h-14 rounded-xl text-center text-xl font-bold font-mono transition-all outline-none
-                  ${d
-                    ? 'bg-gradient-to-br from-[#b76e79]/30 to-[#8b4f5a]/30 border-[#b76e79]/60 text-white border'
-                    : 'glass border border-white/10 text-white/80'
-                  }
-                  focus:border-[#b76e79]/80 focus:shadow-lg focus:shadow-[#b76e79]/10
-                `}
-                autoFocus={i === 0}
-              />
-            ))}
+          <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Email</label>
+          <div className={wrapCls}>
+            <Mail className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
+            <input
+              type="email"
+              placeholder="admin@example.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className={inputCls}
+              required
+              autoFocus
+            />
           </div>
         </div>
-      )}
+        <div>
+          <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Password</label>
+          <div className={wrapCls}>
+            <KeyRound className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className={inputCls}
+              required
+            />
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white/30 hover:text-white/50">
+              {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+        <button
+          type="submit"
+          disabled={loading || locked}
+          className="w-full btn-liquid rounded-xl py-3 text-[14px] font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+          {loading ? 'Signing in...' : locked ? `Locked (${lockSeconds}s)` : 'Sign In'}
+        </button>
+      </form>
 
       {error && (
         <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2 flex items-center gap-2 w-full max-w-xs">
@@ -251,17 +228,19 @@ function ChangeCredentialsModal({ currentEmail, onClose, onChanged }) {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault()
     setError('')
     if (!email.trim()) return setError('Email is required.')
-    const accounts = loadAdminAccounts()
+    const accounts = await loadAdminAccountsAsync()
+    const currentHash = await hashPasswordAsync(currentPass)
     const acc = accounts.find(a => a.email === currentEmail)
-    if (!acc || acc.password !== currentPass) return setError('Current password is incorrect.')
+    if (!acc || acc.password !== currentHash) return setError('Current password is incorrect.')
     if (newPass.length < 8) return setError('New password must be at least 8 characters.')
     if (newPass !== confirmPass) return setError('Passwords do not match.')
+    const newHash = await hashPasswordAsync(newPass)
     const updated = accounts.map(a =>
-      a.email === currentEmail ? { email: email.trim(), password: newPass } : a
+      a.email === currentEmail ? { email: email.trim(), password: newHash } : a
     )
     saveAdminAccounts(updated)
     sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now(), email: email.trim() }))
@@ -375,6 +354,9 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
   const fileInputRef = useRef(null)
   const galleryFileRef = useRef(null)
   const [uploadingGallery, setUploadingGallery] = useState(false)
+  // Raw text for comma-separated fields — only parsed to arrays on blur
+  const [rawSizes, setRawSizes] = useState((initial.sizes || []).join(', '))
+  const [rawColors, setRawColors] = useState((initial.colors || []).join(', '))
 
   const handleGalleryFilesUpload = (e) => {
     const files = Array.from(e.target.files || [])
@@ -412,11 +394,26 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
     }))
   }
 
+  const [customCategoryMode, setCustomCategoryMode] = useState(
+    !['midi', 'slip', 'gown', 'bodycon', 'mini', 'maxi', 'co-ord'].includes(initial.category)
+  )
+  const [customVibeInput, setCustomVibeInput] = useState('')
+
   const toggleVibe = (v) =>
     setForm(f => ({
       ...f,
       vibe: f.vibe.includes(v) ? f.vibe.filter(x => x !== v) : [...f.vibe, v],
     }))
+
+  const removeVibe = (v) =>
+    setForm(f => ({ ...f, vibe: f.vibe.filter(x => x !== v) }))
+
+  const addCustomVibe = () => {
+    const v = customVibeInput.trim().toLowerCase()
+    if (!v) return
+    setForm(f => ({ ...f, vibe: f.vibe.includes(v) ? f.vibe : [...f.vibe, v] }))
+    setCustomVibeInput('')
+  }
 
   const setSizes = (e) => {
     const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
@@ -675,13 +672,31 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
 
         <div>
           <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Category</label>
-          <div className={wClass}>
-            <select value={form.category} onChange={set('category')} className={`${inputClass} bg-transparent`}>
-              {['midi', 'slip', 'gown', 'bodycon', 'mini', 'maxi', 'co-ord'].map(c => (
-                <option key={c} value={c} className="bg-neutral-900">{c}</option>
-              ))}
-            </select>
-          </div>
+          {!customCategoryMode ? (
+            <div className="flex gap-2">
+              <div className={`${wClass} flex-1`}>
+                <select value={form.category} onChange={set('category')} className={`${inputClass} bg-transparent`}>
+                  {['midi', 'slip', 'gown', 'bodycon', 'mini', 'maxi', 'co-ord'].map(c => (
+                    <option key={c} value={c} className="bg-neutral-900">{c}</option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" onClick={() => { setCustomCategoryMode(true); setForm(f => ({ ...f, category: '' })) }}
+                className="glass rounded-xl border border-white/10 px-3 text-[11px] text-white/40 hover:text-white/70 transition-all whitespace-nowrap">
+                + Custom
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <div className={`${wClass} flex-1`}>
+                <input type="text" placeholder="e.g. jumpsuit" value={form.category} onChange={set('category')} className={inputClass} required />
+              </div>
+              <button type="button" onClick={() => { setCustomCategoryMode(false); setForm(f => ({ ...f, category: 'midi' })) }}
+                className="glass rounded-xl border border-white/10 px-3 text-[11px] text-white/40 hover:text-white/70 transition-all whitespace-nowrap">
+                Presets
+              </button>
+            </div>
+          )}
         </div>
 
         <div>
@@ -720,14 +735,36 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
         <div>
           <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Sizes (comma-separated)</label>
           <div className={wClass}>
-            <input type="text" placeholder="XS, S, M, L, XL" value={form.sizes.join(', ')} onChange={setSizes} className={inputClass} />
+            <input
+              type="text"
+              placeholder="XS, S, M, L, XL"
+              value={rawSizes}
+              onChange={e => setRawSizes(e.target.value)}
+              onBlur={e => {
+                const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                setForm(f => ({ ...f, sizes: vals }))
+                setRawSizes(vals.join(', '))
+              }}
+              className={inputClass}
+            />
           </div>
         </div>
 
         <div>
           <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Colors (comma-separated)</label>
           <div className={wClass}>
-            <input type="text" placeholder="Jet Black, Blush Rose" value={(form.colors || []).join(', ')} onChange={setColors} className={inputClass} />
+            <input
+              type="text"
+              placeholder="Jet Black, Blush Rose"
+              value={rawColors}
+              onChange={e => setRawColors(e.target.value)}
+              onBlur={e => {
+                const vals = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                setForm(f => ({ ...f, colors: vals }))
+                setRawColors(vals.join(', '))
+              }}
+              className={inputClass}
+            />
           </div>
         </div>
 
@@ -737,6 +774,24 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
             <Shirt className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
             <input type="text" placeholder="e.g. Silk Satin • 100% Polyester" value={form.material || ''} onChange={set('material')} className={inputClass} />
           </div>
+        </div>
+      </div>
+
+      <div>
+        <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">
+          Instagram Post Link <span className="normal-case text-white/20">(optional)</span>
+        </label>
+        <div className={`${wClass} gap-1`}>
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-white/30 flex-shrink-0" fill="currentColor">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+          </svg>
+          <input
+            type="url"
+            placeholder="https://www.instagram.com/p/..."
+            value={form.instagramUrl || ''}
+            onChange={set('instagramUrl')}
+            className={inputClass}
+          />
         </div>
       </div>
 
@@ -756,7 +811,7 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
       {/* Vibe Toggle */}
       <div>
         <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Vibe</label>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 mb-2">
           {['cocktail', 'club'].map(v => (
             <button
               key={v} type="button"
@@ -769,6 +824,30 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
               {v === 'cocktail' ? '🍸 Cocktail' : '🌙 Club'}
             </button>
           ))}
+          {/* Custom vibe tags */}
+          {form.vibe.filter(v => v !== 'cocktail' && v !== 'club').map(v => (
+            <span key={v} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-[12px] font-medium border bg-gradient-to-r from-[#6366f1]/40 to-[#4f46e5]/40 border-[#6366f1]/40 text-white">
+              {v}
+              <button type="button" onClick={() => removeVibe(v)} className="ml-0.5 text-white/50 hover:text-white leading-none">&times;</button>
+            </span>
+          ))}
+        </div>
+        {/* Add custom vibe */}
+        <div className="flex gap-2">
+          <div className={`${wClass} flex-1`}>
+            <input
+              type="text"
+              placeholder="Add custom vibe…"
+              value={customVibeInput}
+              onChange={e => setCustomVibeInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomVibe() } }}
+              className={inputClass}
+            />
+          </div>
+          <button type="button" onClick={addCustomVibe}
+            className="glass rounded-xl border border-white/10 px-3 text-[11px] text-white/40 hover:text-white/70 transition-all">
+            + Add
+          </button>
         </div>
       </div>
 
@@ -814,11 +893,329 @@ function StockBadge({ stock, onChange }) {
   )
 }
 
+// ── Order Status Management ───────────────────────────────────
+const ORDER_STATUSES = [
+  { value: 'pending',    label: 'Order Placed',  color: 'text-amber-400',   bg: 'bg-amber-400/10 border-amber-400/30' },
+  { value: 'confirmed',  label: 'Confirmed',     color: 'text-blue-400',    bg: 'bg-blue-400/10 border-blue-400/30' },
+  { value: 'processing', label: 'Processing',    color: 'text-purple-400',  bg: 'bg-purple-400/10 border-purple-400/30' },
+  { value: 'shipped',    label: 'Shipped',       color: 'text-indigo-400',  bg: 'bg-indigo-400/10 border-indigo-400/30' },
+  { value: 'delivered',  label: 'Delivered',     color: 'text-emerald-400', bg: 'bg-emerald-400/10 border-emerald-400/30' },
+  { value: 'cancelled',  label: 'Cancelled',     color: 'text-red-400',     bg: 'bg-red-400/10 border-red-400/30' },
+]
+
+function StatusDropdown({ orderId, current, onUpdate }) {
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const curr = ORDER_STATUSES.find(s => s.value === current) || ORDER_STATUSES[0]
+
+  const handleSelect = async (val) => {
+    if (val === current) { setOpen(false); return }
+    setSaving(true)
+    setOpen(false)
+    await updateOrderStatus(orderId, val)
+    onUpdate(orderId, val)
+    setSaving(false)
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-semibold transition-all ${curr.bg} ${curr.color} ${saving ? 'opacity-50' : 'hover:opacity-80'}`}
+      >
+        {saving ? <RefreshCw className="w-3 h-3 animate-spin" /> : null}
+        {curr.label}
+        <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full mt-1 right-0 z-20 glass-dark rounded-2xl border border-white/10 shadow-2xl overflow-hidden min-w-[150px]">
+          {ORDER_STATUSES.map(s => (
+            <button
+              key={s.value}
+              onClick={() => handleSelect(s.value)}
+              className={`w-full text-left px-4 py-2.5 text-[12px] font-medium transition-all hover:bg-white/5 flex items-center gap-2 ${s.color} ${s.value === current ? 'bg-white/5' : ''}`}
+            >
+              {s.value === current && <CheckCircle className="w-3 h-3 flex-shrink-0" />}
+              {s.value !== current && <span className="w-3 h-3 flex-shrink-0" />}
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AdminOrdersTab() {
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [expandedId, setExpandedId] = useState(null)
+  const [filterStatus, setFilterStatus] = useState('all')
+
+  const loadOrders = async () => {
+    setLoading(true)
+    const all = await getAllOrders()
+    setOrders(all || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { loadOrders() }, [])
+
+  const handleUpdate = (orderId, status) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o))
+  }
+
+  const filtered = filterStatus === 'all' ? orders : orders.filter(o => o.status === filterStatus)
+
+  const statusCounts = ORDER_STATUSES.reduce((acc, s) => {
+    acc[s.value] = orders.filter(o => o.status === s.value).length
+    return acc
+  }, {})
+
+  return (
+    <div>
+      {/* Stats */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
+        {ORDER_STATUSES.map(s => (
+          <button
+            key={s.value}
+            onClick={() => setFilterStatus(prev => prev === s.value ? 'all' : s.value)}
+            className={`glass-dark rounded-2xl border px-3 py-3 text-center transition-all hover:opacity-80 ${filterStatus === s.value ? 'border-white/20 scale-[1.02]' : 'border-white/5'}`}
+          >
+            <p className={`font-bold text-xl ${s.color}`}>{statusCounts[s.value] || 0}</p>
+            <p className="text-[9px] text-white/25 mt-0.5 leading-tight">{s.label}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-serif text-base font-semibold text-white/80">
+          {filterStatus === 'all' ? `All Orders (${orders.length})` : `${ORDER_STATUSES.find(s=>s.value===filterStatus)?.label} (${filtered.length})`}
+        </h2>
+        <button
+          onClick={loadOrders}
+          className="glass rounded-xl border border-white/10 px-3 py-1.5 text-[11px] text-white/40 hover:text-white/70 flex items-center gap-1.5 transition-all"
+        >
+          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="py-16 text-center">
+          <RefreshCw className="w-6 h-6 text-white/20 animate-spin mx-auto mb-3" />
+          <p className="text-[13px] text-white/25">Loading orders...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-16 text-center text-white/20 text-[13px]">No orders found.</div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(order => {
+            const shortId = String(order.id).slice(-8).toUpperCase()
+            const date = new Date(order.created_at || Date.now())
+            const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+            const items = order.items || []
+            const addr = order.shipping_address || order.shippingAddress || {}
+            const expanded = expandedId === order.id
+            const statusInfo = ORDER_STATUSES.find(s => s.value === order.status) || ORDER_STATUSES[0]
+
+            return (
+              <div key={order.id} className="glass-dark rounded-[20px] border border-white/8 overflow-hidden transition-all">
+                {/* Row */}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  {/* Expand toggle */}
+                  <button
+                    onClick={() => setExpandedId(expanded ? null : order.id)}
+                    className="flex-1 flex items-center gap-3 text-left min-w-0"
+                  >
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center border flex-shrink-0 ${statusInfo.bg} ${statusInfo.color}`}>
+                      <Package className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-[12px] font-bold text-[#e8a0a8]">#{shortId}</span>
+                        <span className="text-[10px] text-white/30">{dateStr}</span>
+                        <span className="text-[9px] text-white/20">{items.length} item{items.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      {addr.name && (
+                        <p className="text-[11px] text-white/35 mt-0.5 truncate flex items-center gap-1">
+                          <UserIcon className="w-3 h-3 flex-shrink-0" /> {addr.name}
+                          {addr.phone && <span className="text-white/20 ml-1">{addr.phone}</span>}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-[13px] font-bold text-white/70 flex-shrink-0 ml-auto mr-2">
+                      ₹{(order.total || 0).toLocaleString('en-IN')}
+                    </p>
+                  </button>
+                  {/* Status dropdown */}
+                  <StatusDropdown orderId={order.id} current={order.status || 'pending'} onUpdate={handleUpdate} />
+                </div>
+
+                {/* Expanded */}
+                {expanded && (
+                  <div className="border-t border-white/5 px-4 py-3 space-y-3">
+                    {/* Items */}
+                    {items.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[9px] tracking-[0.2em] text-white/20 uppercase">Items</p>
+                        {items.map((item, i) => (
+                          <div key={i} className="flex items-center gap-3 glass rounded-xl border border-white/5 px-3 py-2">
+                            {item.product?.img && (
+                              <img src={item.product.img} alt="" className="w-9 h-11 rounded-lg object-cover object-top flex-shrink-0 border border-white/8" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-semibold text-white/70 truncate">{item.product?.name || 'Product'}</p>
+                              <p className="text-[10px] text-white/30">Size: {item.size} · Qty: {item.qty}</p>
+                            </div>
+                            <p className="text-[11px] font-bold text-[#e8a0a8]">₹{((item.product?.price || 0) * (item.qty || 1)).toLocaleString('en-IN')}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Delivery address */}
+                    {(addr.line1 || addr.city) && (
+                      <div className="glass rounded-xl border border-white/5 px-3 py-2.5 flex items-start gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-[#b76e79] flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[9px] tracking-[0.2em] text-white/20 uppercase mb-0.5">Delivery Address</p>
+                          <p className="text-[11px] text-white/45 leading-relaxed">
+                            {[addr.line1, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ')}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Admin Wishlist Tab ────────────────────────────────────────
+function AdminWishlistTab() {
+  const [aggregate, setAggregate] = useState({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setLoading(true)
+    getWishlistSummaryDB().then(dbData => {
+      if (dbData !== null) {
+        setAggregate(dbData)
+      } else {
+        // Offline fallback: read from localStorage aggregate cache
+        try {
+          const raw = localStorage.getItem('ellaura_wishlist_aggregate')
+          if (raw) setAggregate(JSON.parse(raw))
+        } catch {}
+      }
+      setLoading(false)
+    })
+  }, [])
+
+  const entries = Object.values(aggregate)
+    .filter(e => e.count > 0)
+    .sort((a, b) => b.count - a.count)
+
+  const totalWishes = entries.reduce((n, e) => n + e.count, 0)
+  const uniqueUsers = new Set(entries.flatMap(e => e.users || [])).size
+
+  return (
+    <div>
+      {loading ? (
+        <div className="py-16 text-center">
+          <RefreshCw className="w-6 h-6 text-white/20 animate-spin mx-auto mb-3" />
+          <p className="text-[13px] text-white/25">Loading wishlist data...</p>
+        </div>
+      ) : (
+      <>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        {[
+          { label: 'Wishlisted Products', val: entries.length },
+          { label: 'Total Wishes', val: totalWishes },
+          { label: 'Unique Users', val: uniqueUsers },
+        ].map(({ label, val }) => (
+          <div key={label} className="glass-dark rounded-2xl border border-white/8 px-4 py-3 text-center">
+            <p className="font-serif text-2xl font-bold text-[#e8a0a8]">{val}</p>
+            <p className="text-[10px] text-white/25 tracking-widest uppercase mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {entries.length === 0 ? (
+        <div className="py-16 text-center glass-dark rounded-[24px] border border-white/8">
+          <Heart className="w-10 h-10 text-white/10 mx-auto mb-3" />
+          <p className="text-[13px] text-white/25">No wishlist data yet.</p>
+          <p className="text-[11px] text-white/15 mt-1">Products hearted by users will appear here.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {entries.map((entry, i) => {
+            const p = entry.product || {}
+            const userList = (entry.users || [])
+            return (
+              <div key={p.id} className="glass-dark rounded-[20px] border border-white/8 flex items-center gap-4 px-4 py-3">
+                {/* Rank */}
+                <span className="font-serif text-[13px] text-white/20 w-5 flex-shrink-0 text-center">{i + 1}</span>
+                {/* Image */}
+                {p.img && (
+                  <img src={p.img} alt="" className="w-12 h-14 rounded-xl object-cover object-top border border-white/8 flex-shrink-0" />
+                )}
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-white/80 truncate">{p.name || 'Unknown Product'}</p>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {p.category && (
+                      <span className="text-[9px] uppercase tracking-widest text-white/30 glass rounded-lg px-1.5 py-0.5 border border-white/8">{p.category}</span>
+                    )}
+                    {p.price > 0 && (
+                      <span className="text-[10px] text-white/30">₹{p.price.toLocaleString('en-IN')}</span>
+                    )}
+                  </div>
+                  {userList.length > 0 && (
+                    <p className="text-[10px] text-white/20 mt-1 truncate">
+                      {userList.map(u => u === 'guest' ? 'Guest' : `User …${String(u).slice(-6)}`).join(', ')}
+                    </p>
+                  )}
+                </div>
+                {/* Count badge */}
+                <div className="flex items-center gap-1.5 flex-shrink-0 bg-[#b76e79]/15 border border-[#b76e79]/25 rounded-xl px-3 py-2">
+                  <Heart className="w-3.5 h-3.5 fill-[#e8a0a8] text-[#e8a0a8]" />
+                  <span className="font-bold text-[#e8a0a8] text-[15px]">{entry.count}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      </>
+      )}
+    </div>
+  )
+}
+
 // ── Main Admin Page ───────────────────────────────────────────
 export default function AdminPage() {
   const navigate = useNavigate()
-  const [authed, setAuthed] = useState(false)
-  const [adminEmail, setAdminEmail] = useState('')
+  const [authed, setAuthed] = useState(() => {
+    try {
+      const s = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || 'null')
+      return !!(s && Date.now() - s.ts < SESSION_TTL)
+    } catch { return false }
+  })
+  const [adminEmail, setAdminEmail] = useState(() => {
+    try {
+      const s = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || 'null')
+      if (s && Date.now() - s.ts < SESSION_TTL) return s.email || ''
+    } catch { }
+    return ''
+  })
+  const [adminTab, setAdminTab] = useState('products') // 'products' | 'orders' | 'wishlist'
   const [products, setProducts] = useState([])
   const [mode, setMode] = useState('list') // 'list' | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null)
@@ -828,15 +1225,19 @@ export default function AdminPage() {
   const [dbSyncing, setDbSyncing] = useState(false)
   const [dbError, setDbError] = useState('')
 
-  // Check session on mount
+  // Session is read synchronously in useState initializers above.
+  // Cleanup: wipe the session the instant the user leaves /admin.
   useEffect(() => {
     try {
       const s = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || 'null')
       if (s && Date.now() - s.ts < SESSION_TTL) {
         setAuthed(true)
-        setAdminEmail(s.email || 'PIN Login')
+        setAdminEmail(s.email || '')
       }
     } catch { }
+    return () => {
+      sessionStorage.removeItem(ADMIN_SESSION_KEY)
+    }
   }, [])
 
   // Load products once authed
@@ -896,8 +1297,17 @@ export default function AdminPage() {
 
     // Persist to Supabase if connected
     setDbSyncing(true)
-    try { await upsertProduct(product) } catch (e) { console.warn('DB sync failed:', e.message) }
-    finally { setDbSyncing(false) }
+    setDbError('')
+    try {
+      const result = await upsertProduct(product)
+      if (result === null) {
+        setDbError('Product saved locally but could not sync to database. Check your Supabase connection.')
+      }
+    } catch (e) {
+      setDbError(`DB sync failed: ${e.message}`)
+    } finally {
+      setDbSyncing(false)
+    }
   }
 
   const handleDelete = async (id) => {
@@ -934,15 +1344,9 @@ export default function AdminPage() {
     } catch { }
   }
 
-  // ── Auth Gate ─────────────────────────────────────────────
+  // ── Auth Gate — redirect to login if no valid session ────────
   if (!authed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4 pt-24 pb-16">
-        <div className="w-full max-w-sm">
-          <AdminLogin onVerify={handleAuth} />
-        </div>
-      </div>
-    )
+    return <Navigate to="/login" replace />
   }
 
   // ── Dashboard ─────────────────────────────────────────────
@@ -992,13 +1396,40 @@ export default function AdminPage() {
             <RefreshCw className="w-3 h-3 animate-spin" /> Syncing with database...
           </div>
         )}
-        {!DEMO_MODE && DEFAULT_PIN && (
-          <div className="mb-4 glass rounded-xl border border-red-500/20 px-4 py-3 text-[12px] text-red-400/80 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-            Default admin PIN is active. Set <code className="font-mono mx-1">VITE_ADMIN_PIN</code> in your environment variables before deploying.
+        {dbError && (
+          <div className="mb-4 flex items-start gap-2 glass rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3">
+            <AlertTriangle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-red-400">{dbError}</p>
           </div>
         )}
 
+
+        {/* Tab switcher */}
+        <div className="flex gap-1 glass rounded-2xl p-1 mb-8 w-fit">
+          <button
+            onClick={() => setAdminTab('products')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${adminTab === 'products' ? 'bg-gradient-to-r from-[#b76e79]/60 to-[#8b4f5a]/60 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+          >
+            <Shirt className="w-4 h-4" /> Products
+          </button>
+          <button
+            onClick={() => setAdminTab('orders')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${adminTab === 'orders' ? 'bg-gradient-to-r from-[#b76e79]/60 to-[#8b4f5a]/60 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+          >
+            <ClipboardList className="w-4 h-4" /> Orders
+          </button>
+          <button
+            onClick={() => setAdminTab('wishlist')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${adminTab === 'wishlist' ? 'bg-gradient-to-r from-[#b76e79]/60 to-[#8b4f5a]/60 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+          >
+            <Heart className="w-4 h-4" /> Wishlist
+          </button>
+        </div>
+
+        {adminTab === 'orders' && <AdminOrdersTab />}
+        {adminTab === 'wishlist' && <AdminWishlistTab />}
+
+        {adminTab === 'products' && <>
         {/* Stats bar */}
         <div className="grid grid-cols-3 gap-3 mb-8">
           {[
@@ -1142,15 +1573,12 @@ export default function AdminPage() {
         )}
 
         {/* Note about DB sync status */}
-        {DEMO_MODE ? (
+        {DEMO_MODE && (
           <div className="mt-6 glass rounded-2xl border border-amber-400/15 px-5 py-4 text-[12px] text-amber-400/60 leading-relaxed">
             <strong className="text-amber-400/80">Demo mode:</strong> Product changes are saved in your browser only. Connect Supabase (add <code className="font-mono text-amber-300/60">VITE_SUPABASE_URL</code> + <code className="font-mono text-amber-300/60">VITE_SUPABASE_ANON_KEY</code>) and run <code className="font-mono text-amber-300/60">supabase_schema.sql</code> to persist to the database.
           </div>
-        ) : (
-          <div className="mt-6 glass rounded-2xl border border-emerald-500/15 px-5 py-4 text-[12px] text-emerald-400/60 leading-relaxed">
-            <strong className="text-emerald-400/80">Live mode:</strong> Product changes are synced to Supabase in real time.
-          </div>
         )}
+        </>}
       </div>
     </div>
   )

@@ -78,9 +78,17 @@ const getDemoOrders = () => {
     return []
   }
 }
-const saveDemoOrders = (orders) => localStorage.setItem(DEMO_ORDERS_KEY, JSON.stringify(orders))
+const DEMO_ORDERS_MAX = 50 // cap localStorage mirror so it never grows unboundedly
+const saveDemoOrders = (orders) => localStorage.setItem(DEMO_ORDERS_KEY, JSON.stringify(orders.slice(0, DEMO_ORDERS_MAX)))
 const setDemoUser = (u) => localStorage.setItem(DEMO_USER_KEY, JSON.stringify(u))
 const clearDemoUser = () => localStorage.removeItem(DEMO_USER_KEY)
+
+// Demo password store — so changing password is honoured even without Supabase
+const DEMO_PASSWORDS_KEY = 'ellaura_demo_passwords'
+const getDemoPasswords = () => { try { return JSON.parse(localStorage.getItem(DEMO_PASSWORDS_KEY) || '{}') } catch { return {} } }
+const setDemoPassword = (email, pw) => { const p = getDemoPasswords(); p[email.toLowerCase()] = pw; localStorage.setItem(DEMO_PASSWORDS_KEY, JSON.stringify(p)) }
+const checkDemoPassword = (email, pw) => { const stored = getDemoPasswords()[email.toLowerCase()]; return stored === undefined || stored === pw }
+
 const emitAuthChange = (user) =>
   window.dispatchEvent(new CustomEvent('ellaura_auth_change', { detail: user }))
 
@@ -92,7 +100,8 @@ const mockSupabase = {
       error: null,
     }),
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => { } } } }),
-    signOut: async () => { clearDemoUser(); emitAuthChange(null); return { error: null } },
+    signOut: async ({ scope } = {}) => { if (scope !== 'others') { clearDemoUser(); emitAuthChange(null) } return { error: null } },
+    updateUser: async ({ password } = {}) => { const user = getDemoUser(); if (user && password) setDemoPassword(user.email, password); return { data: { user }, error: null } },
   },
   from: (table) => ({
     select: (cols) => ({
@@ -113,9 +122,10 @@ const mockSupabase = {
 export const supabase = DEMO_MODE ? mockSupabase : createClient(supabaseUrl, supabaseAnonKey)
 
 // ── Demo auth helpers (shared by DEMO_MODE and offline fallback) ──
-const demoSignUp = ({ email, fullName, phone, city, stylePreference }) => {
+const demoSignUp = ({ email, password, fullName, phone, city, stylePreference }) => {
+  if (password) setDemoPassword(email, password)
   const demoUser = {
-    id: `demo_${Date.now()}`,
+    id: `demo_${email.replace(/[^a-z0-9]/gi, '_')}`,  // deterministic — same as demoSignIn
     email,
     user_metadata: { full_name: fullName, phone, city, style_preference: stylePreference },
   }
@@ -124,7 +134,18 @@ const demoSignUp = ({ email, fullName, phone, city, stylePreference }) => {
   return { user: demoUser, session: { user: demoUser } }
 }
 
-const demoSignIn = ({ email }) => {
+const _ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL || 'admin@ellaura.in').toLowerCase()
+
+const demoSignIn = ({ email, password }) => {
+  // Never create a customer session for the admin email — this prevents
+  // bypassing the password check when Supabase is offline/in demo mode.
+  if (email.toLowerCase() === _ADMIN_EMAIL) {
+    throw new Error('Invalid email or password.')
+  }
+  // Enforce stored password (set at sign-up or after a password change)
+  if (password !== undefined && !checkDemoPassword(email, password)) {
+    throw new Error('Invalid email or password.')
+  }
   const demoUser = {
     id: `demo_${email.replace(/[^a-z0-9]/gi, '_')}`,
     email,
@@ -138,7 +159,7 @@ const demoSignIn = ({ email }) => {
 // ── Auth helpers ──────────────────────────────────────────────
 
 export const signUp = async ({ email, password, fullName, phone, city, stylePreference }) => {
-  if (isDemo()) return demoSignUp({ email, fullName, phone, city, stylePreference })
+  if (isDemo()) return demoSignUp({ email, password, fullName, phone, city, stylePreference })
   try {
     const { data, error } = await sbFetch(() =>
       supabase.auth.signUp({
@@ -151,7 +172,7 @@ export const signUp = async ({ email, password, fullName, phone, city, stylePref
       // Rate-limited by Supabase — fall back to local demo auth
       if (error.message?.toLowerCase().includes('rate limit')) {
         console.warn('[Ellaura] Supabase email rate limit hit — using local auth instead.')
-        return demoSignUp({ email, fullName, phone, city, stylePreference })
+        return demoSignUp({ email, password, fullName, phone, city, stylePreference })
       }
       throw error
     }
@@ -175,26 +196,26 @@ export const signUp = async ({ email, password, fullName, phone, city, stylePref
         if (loginResult.error) {
           // Email confirmation is strictly required — fall back to local auth
           console.warn('[Ellaura] Email confirmation required — using local auth.')
-          return demoSignUp({ email, fullName, phone, city, stylePreference })
+          return demoSignUp({ email, password, fullName, phone, city, stylePreference })
         }
         return loginResult.data
       } catch {
-        return demoSignUp({ email, fullName, phone, city, stylePreference })
+        return demoSignUp({ email, password, fullName, phone, city, stylePreference })
       }
     }
     return data
   } catch (err) {
     if (err.message?.toLowerCase().includes('rate limit')) {
       console.warn('[Ellaura] Supabase email rate limit hit — using local auth instead.')
-      return demoSignUp({ email, fullName, phone, city, stylePreference })
+      return demoSignUp({ email, password, fullName, phone, city, stylePreference })
     }
-    if (isDemo()) return demoSignUp({ email, fullName, phone, city, stylePreference })
+    if (isDemo()) return demoSignUp({ email, password, fullName, phone, city, stylePreference })
     throw err
   }
 }
 
 export const signIn = async ({ email, password }) => {
-  if (isDemo()) return demoSignIn({ email })
+  if (isDemo()) return demoSignIn({ email, password })
   try {
     const { data, error } = await sbFetch(() =>
       supabase.auth.signInWithPassword({ email, password })
@@ -202,7 +223,7 @@ export const signIn = async ({ email, password }) => {
     if (error) {
       if (error.message?.toLowerCase().includes('rate limit')) {
         console.warn('[Ellaura] Supabase rate limit hit — using local auth instead.')
-        return demoSignIn({ email })
+        return demoSignIn({ email, password })
       }
       throw error
     }
@@ -210,9 +231,11 @@ export const signIn = async ({ email, password }) => {
   } catch (err) {
     if (err.message?.toLowerCase().includes('rate limit')) {
       console.warn('[Ellaura] Supabase rate limit hit — using local auth instead.')
-      return demoSignIn({ email })
+      return demoSignIn({ email, password })
     }
-    if (isDemo()) return demoSignIn({ email })
+    // Only fall back to demo sign-in when truly in demo mode (no real Supabase configured).
+    // Do NOT bypass password check when Supabase is just temporarily offline.
+    if (DEMO_MODE) return demoSignIn({ email, password })
     throw err
   }
 }
@@ -229,7 +252,10 @@ export const signOut = async () => {
 }
 
 export const getProfile = async (userId) => {
-  if (isDemo()) return null
+  if (isDemo()) {
+    const u = getDemoUser()
+    return u && u.id === userId ? u : null
+  }
   try {
     const { data, error } = await sbFetch(() =>
       supabase.from('profiles').select('*').eq('id', userId).single()
@@ -239,23 +265,85 @@ export const getProfile = async (userId) => {
   } catch { return null }
 }
 
+export const updateProfile = async (userId, updates) => {
+  // Always update demo user if present (works even in fallback/offline mode)
+  const demoUser = getDemoUser()
+  if (demoUser && demoUser.id === userId) {
+    const updated = { ...demoUser, ...updates }
+    setDemoUser(updated)
+    emitAuthChange(updated)
+  }
+  if (isDemo()) return getDemoUser()
+  try {
+    const { data, error } = await sbFetch(() =>
+      supabase.from('profiles').upsert({ id: userId, ...updates }).select().single()
+    )
+    if (error) throw error
+    return data
+  } catch { return null }
+}
+
+export const updatePassword = async (newPassword) => {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+  // Invalidate all other active sessions so the old password can't be used elsewhere
+  try { await supabase.auth.signOut({ scope: 'others' }) } catch { /* non-critical */ }
+}
+
+// ── Saved Measurements ────────────────────────────────────────
+// Stores a user's body measurements for quick re-use on Custom Fit orders.
+// Primary storage: profiles.measurements (JSONB) in Supabase.
+// Mirror: localStorage for instant reads and offline support.
+
+const MEASUREMENTS_LS_KEY = (uid) => `ellaura_measurements_${uid || 'guest'}`
+
+export const getSavedMeasurements = async (userId) => {
+  // Always check localStorage first — instant and works offline
+  try {
+    const stored = localStorage.getItem(MEASUREMENTS_LS_KEY(userId))
+    if (stored) return JSON.parse(stored)
+  } catch {}
+  if (!userId || isDemo()) return null
+  try {
+    const { data, error } = await sbFetch(() =>
+      supabase.from('profiles').select('measurements').eq('id', userId).single()
+    )
+    if (error || !data?.measurements) return null
+    // Mirror to localStorage for next time
+    try { localStorage.setItem(MEASUREMENTS_LS_KEY(userId), JSON.stringify(data.measurements)) } catch {}
+    return data.measurements
+  } catch { return null }
+}
+
+export const saveMeasurementsDB = async (userId, measurements) => {
+  // Always save to localStorage immediately (works even offline / demo)
+  try { localStorage.setItem(MEASUREMENTS_LS_KEY(userId || 'guest'), JSON.stringify(measurements)) } catch {}
+  if (!userId || isDemo()) return
+  try {
+    await sbFetch(() =>
+      supabase.from('profiles').upsert({ id: userId, measurements }, { onConflict: 'id' })
+    )
+  } catch { /* offline — localStorage already saved above */ }
+}
+
 // ── Orders ────────────────────────────────────────────────────
 
 export const createOrder = async ({ userId, items, total, subtotal, shippingAddress, stripePaymentIntentId }) => {
   const orderSubtotal = subtotal ?? total
+  const buildLocalOrder = (id) => ({
+    id,
+    user_id: userId || null,
+    guest_email: !userId ? (shippingAddress?.email || null) : null,
+    items,
+    subtotal: orderSubtotal,
+    total,
+    shipping_address: shippingAddress,
+    stripe_payment_intent: stripePaymentIntentId,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  })
   if (isDemo()) {
-    const order = {
-      id: `demo_order_${Date.now()}`,
-      user_id: userId || null,
-      guest_email: !userId ? (shippingAddress?.email || null) : null,
-      items,
-      subtotal: orderSubtotal,
-      total,
-      shipping_address: shippingAddress,
-      stripe_payment_intent: stripePaymentIntentId,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    }
+    const order = buildLocalOrder(`demo_order_${Date.now()}`)
     const prev = getDemoOrders()
     saveDemoOrders([order, ...prev])
     return order
@@ -273,10 +361,16 @@ export const createOrder = async ({ userId, items, total, subtotal, shippingAddr
       }).select().single()
     )
     if (error) throw error
+    // Mirror in localStorage so My Orders works even if Supabase schema is missing
+    const prev = getDemoOrders()
+    saveDemoOrders([data, ...prev.filter(o => o.id !== data.id)])
     return data
   } catch (err) {
-    if (isDemo()) return { id: `demo_order_${Date.now()}` }
-    throw err
+    // Supabase unavailable — save locally so the order is never lost
+    const fallback = buildLocalOrder(`local_order_${Date.now()}`)
+    const prev = getDemoOrders()
+    saveDemoOrders([fallback, ...prev])
+    return fallback
   }
 }
 
@@ -291,24 +385,48 @@ export const getUserOrders = async (userId) => {
         .order('created_at', { ascending: false })
     )
     if (error) throw error
-    return data || []
-  } catch { return [] }
+    const remote = data || []
+    // Merge with any locally-saved orders (created when Supabase was offline)
+    const local = getDemoOrders().filter(o => o.user_id === userId)
+    const remoteIds = new Set(remote.map(o => o.id))
+    return [...remote, ...local.filter(o => !remoteIds.has(o.id))]
+  } catch {
+    // Supabase unavailable — return local orders
+    return getDemoOrders().filter(o => o.user_id === userId)
+  }
+}
+
+export const getAllOrders = async () => {
+  const local = getDemoOrders()
+  if (isDemo()) return local.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  try {
+    const { data, error } = await sbFetch(() =>
+      supabase.from('orders').select('*').order('created_at', { ascending: false })
+    )
+    if (error) throw error
+    const remote = data || []
+    const remoteIds = new Set(remote.map(o => o.id))
+    return [...remote, ...local.filter(o => !remoteIds.has(o.id))]
+  } catch {
+    return local.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  }
 }
 
 export const updateOrderStatus = async (orderId, status) => {
-  if (isDemo()) {
-    const updated = getDemoOrders().map(o =>
-      o.id === orderId ? { ...o, status, updated_at: new Date().toISOString() } : o
-    )
-    saveDemoOrders(updated)
-    return
-  }
+  // Always update localStorage (works in demo + as cache when live)
+  const updated = getDemoOrders().map(o =>
+    o.id === orderId ? { ...o, status, updated_at: new Date().toISOString() } : o
+  )
+  saveDemoOrders(updated)
+  // Broadcast to any open tab so the user's OrdersPage refreshes immediately
+  window.dispatchEvent(new CustomEvent('ellaura_order_updated', { detail: { orderId, status } }))
+  if (isDemo()) return
   try {
     const { error } = await sbFetch(() =>
-      supabase.from('orders').update({ status }).eq('id', orderId)
+      supabase.from('orders').update({ status, updated_at: new Date().toISOString() }).eq('id', orderId)
     )
     if (error) throw error
-  } catch { /* offline — skip */ }
+  } catch { /* offline — localStorage already updated above */ }
 }
 
 // Decrements a product's stock by `qty` units (floor: 0).
@@ -476,16 +594,21 @@ export const getSavedAddresses = async (userId) => {
       supabase.from('addresses').select('*').eq('user_id', userId).order('is_default', { ascending: false })
     )
     if (error) throw error
-    return data || []
-  } catch { return [] }
+    // Merge Supabase results with local fallback (local may have entries when Supabase was offline)
+    const local = getDemoAddresses().filter(a => a.user_id === userId)
+    const remote = data || []
+    if (remote.length > 0) return remote
+    return local
+  } catch { return getDemoAddresses().filter(a => a.user_id === userId) }
 }
 
 export const saveAddress = async (userId, addr) => {
   if (!userId) return null
   const entry = { ...addr, user_id: userId, updated_at: new Date().toISOString() }
-  if (isDemo()) {
+
+  // Helper: always save to localStorage as offline fallback
+  const saveLocally = () => {
     const existing = getDemoAddresses()
-    // Check if identical address already exists for this user
     const dup = existing.find(a =>
       a.user_id === userId &&
       a.line1?.trim().toLowerCase() === addr.line1?.trim().toLowerCase() &&
@@ -496,19 +619,34 @@ export const saveAddress = async (userId, addr) => {
     saveDemoAddresses([...existing, newEntry])
     return newEntry
   }
+
+  if (isDemo()) return saveLocally()
   try {
     const { data: existing } = await sbFetch(() =>
       supabase.from('addresses').select('id').eq('user_id', userId)
         .ilike('line1', addr.line1).eq('pincode', addr.pincode).maybeSingle()
     )
-    if (existing) return existing
+    if (existing) { saveLocally(); return existing }
     const isFirst = (await getSavedAddresses(userId)).length === 0
     const { data, error } = await sbFetch(() =>
       supabase.from('addresses').insert({ ...entry, is_default: isFirst }).select().single()
     )
     if (error) throw error
+    saveLocally() // mirror locally for offline fallback
     return data
-  } catch { return null }
+  } catch { return saveLocally() }
+}
+
+export const deleteAddress = async (userId, addressId) => {
+  // Always remove from localStorage
+  const local = getDemoAddresses()
+  saveDemoAddresses(local.filter(a => !(a.user_id === userId && a.id === addressId)))
+  if (isDemo()) return
+  try {
+    await sbFetch(() =>
+      supabase.from('addresses').delete().eq('id', addressId).eq('user_id', userId)
+    )
+  } catch { /* offline — already removed from local */ }
 }
 
 // ── WhatsApp Order Notification ───────────────────────────────
@@ -516,18 +654,57 @@ export const saveAddress = async (userId, addr) => {
 // VITE_WHATSAPP_NUMBER should be set in .env as country code + number, e.g. 919876543210
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || ''
 
-export const sendWhatsAppOrderNotification = ({ orderId, items, total, shipping, userId }) => {
+// ── Measurement formatter ──────────────────────────────────────
+// Converts the full measurements object (including optional fields,
+// unit preference, and any extra custom rows) into a readable string.
+const MEASUREMENT_LABELS = {
+  bust:              'Bust',
+  waist:             'Waist',
+  hips:              'Hips',
+  shoulder_armhole:  'Shoulder (Armhole)',
+  shoulder_to_wrist: 'Shoulder to Wrist',
+  arms_round:        'Arms Round',
+  back_shoulder:     'Back (Shoulder to Shoulder)',
+  below_chest:       'Below Chest',
+  seat:              'Seat',
+  leg_length:        'Leg Length',
+}
+
+const formatMeasurements = (m, separator = '  ') => {
+  if (!m) return ''
+  const unit = m._unit || 'cm'
+  const lines = []
+  for (const [key, label] of Object.entries(MEASUREMENT_LABELS)) {
+    if (m[key]?.toString().trim()) lines.push(`${label}: ${m[key]}${unit}`)
+  }
+  if (Array.isArray(m._extra)) {
+    for (const row of m._extra) {
+      if (row.label?.trim() && row.value?.toString().trim())
+        lines.push(`${row.label.trim()}: ${row.value}${unit}`)
+    }
+  }
+  return lines.join(separator)
+}
+
+export const sendWhatsAppOrderNotification = ({ orderId, items, total, shipping, userId, paymentMethod = 'COD' }) => {
   if (!WHATSAPP_NUMBER) return
   const shortId = String(orderId).slice(-8).toUpperCase()
+  const isCOD = paymentMethod === 'COD'
   const itemLines = (items || []).map(i => {
     const name = i.product?.name || i.name || 'Product'
     const size = i.size || ''
     const qty = i.qty || 1
     const price = i.product?.price || i.price || 0
-    return `  • ${name} (Size: ${size}, Qty: ${qty}) — ₹${(price * qty).toLocaleString('en-IN')}`
+    const m = i.measurements
+    const mFormatted = formatMeasurements(m, '  ')
+    const mStr = mFormatted ? `\n    📐 ${mFormatted}` : ''
+    return `  • ${name} (Size: ${size}, Qty: ${qty}) — ₹${(price * qty).toLocaleString('en-IN')}${mStr}`
   }).join('\n')
   const addr = shipping || {}
   const addressLine = [addr.line1, addr.line2, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ')
+  const paymentLine = isCOD
+    ? `💵 *Payment: CASH ON DELIVERY* ⚠️ Collect ₹${(total || 0).toLocaleString('en-IN')} at doorstep`
+    : `✅ *Payment: PAID ONLINE via ${paymentMethod}* — ₹${(total || 0).toLocaleString('en-IN')} received`
   const message = [
     `🛍️ *New Ellaura Order — #${shortId}*`,
     ``,
@@ -540,6 +717,7 @@ export const sendWhatsAppOrderNotification = ({ orderId, items, total, shipping,
     itemLines,
     ``,
     `💰 *Total: ₹${(total || 0).toLocaleString('en-IN')}*`,
+    paymentLine,
     ``,
     `📍 *Delivery Address*`,
     `  ${addressLine}`,
@@ -547,7 +725,215 @@ export const sendWhatsAppOrderNotification = ({ orderId, items, total, shipping,
     `🔖 Order ID: ${orderId}`,
   ].join('\n')
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
-  window.open(url, '_blank', 'noopener,noreferrer')
+  // Open WhatsApp in a new background tab so the customer stays on the site
+  try { window.open(url, '_blank', 'noopener,noreferrer') } catch {}
+  console.info('[Ellaura] WhatsApp order notification sent:', url)
+}
+
+// ── Google Sheets Real-Time Order Sync ───────────────────────
+// Set VITE_SHEETS_WEBHOOK_URL in .env to your Google Apps Script web app URL.
+// Every order is appended as a new row in your Google Sheet automatically.
+//
+// Setup steps:
+//   1. Go to https://script.google.com → New Project
+//   2. Paste the Apps Script code (see README or comments below)
+//   3. Deploy → New deployment → Web app → Anyone → Copy URL
+//   4. Add to .env: VITE_SHEETS_WEBHOOK_URL=https://script.google.com/macros/s/.../exec
+
+const SHEETS_WEBHOOK = import.meta.env.VITE_SHEETS_WEBHOOK_URL || ''
+
+export const sendOrderToGoogleSheets = async ({ orderId, items, total, shipping, paymentMethod = 'COD' }) => {
+  if (!SHEETS_WEBHOOK) return // not configured — silently skip
+  try {
+    const addr = shipping || {}
+    const shortId = String(orderId).slice(-8).toUpperCase()
+    const itemsSummary = (items || []).map(i => {
+      const name = i.product?.name || i.name || 'Product'
+      const size = i.size || ''
+      const qty = i.qty || 1
+      const m = i.measurements
+      const mStr = m ? ` [${formatMeasurements(m, ' | ')}]` : ''
+      return `${name} (${size} x${qty})${mStr}`
+    }).join(', ')
+    const measurementsSummary = (items || []).filter(i => i.measurements).map(i => {
+      const name = i.product?.name || 'Product'
+      return `${name} — ${formatMeasurements(i.measurements, ' | ')}`
+    }).join(' || ') || ''
+    const addressLine = [addr.line1, addr.line2, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ')
+    const payload = {
+      orderId: shortId,
+      fullOrderId: String(orderId),
+      date: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      name: addr.name || '',
+      phone: addr.phone || '',
+      email: addr.email || '',
+      items: itemsSummary,
+      total: `₹${(total || 0).toLocaleString('en-IN')}`,
+      address: addressLine,
+      city: addr.city || '',
+      state: addr.state || '',
+      pincode: addr.pincode || '',
+      payment: paymentMethod === 'COD' ? 'COD — Collect on delivery' : `Paid — ${paymentMethod}`,
+      paymentStatus: paymentMethod === 'COD' ? 'UNPAID' : 'PAID',
+      status: 'Pending',
+      customMeasurements: measurementsSummary,
+    }
+    // Use no-cors so browser doesn't block the cross-origin POST
+    await fetch(SHEETS_WEBHOOK, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (err) {
+    console.warn('[Ellaura] Google Sheets sync failed (non-critical):', err.message)
+  }
+}
+
+// Shiprocket integration removed — shipping handled manually via WhatsApp.
+
+// ── Wishlist DB ───────────────────────────────────────────────
+
+/**
+ * Load all wishlist products for a user from Supabase.
+ * Returns an array of product objects, or null when offline/demo.
+ */
+export const getWishlistDB = async (userId) => {
+  if (!userId || isDemo()) return null
+  try {
+    const { data, error } = await sbFetch(() =>
+      supabase.from('wishlists').select('product_snapshot').eq('user_id', userId)
+    )
+    if (error) throw error
+    return (data || []).map(r => r.product_snapshot).filter(Boolean)
+  } catch { return null }
+}
+
+/** Upsert a single product into the user's DB wishlist (fire-and-forget). */
+export const addToWishlistDB = async (userId, product) => {
+  if (!userId || isDemo()) return
+  const snapshot = {
+    id: product.id, name: product.name, img: product.img,
+    price: product.price, priceDisplay: product.priceDisplay,
+    category: product.category, sizes: product.sizes,
+    rating: product.rating, reviews: product.reviews,
+  }
+  try {
+    await sbFetch(() =>
+      supabase.from('wishlists')
+        .upsert({ user_id: userId, product_id: product.id, product_snapshot: snapshot },
+          { onConflict: 'user_id,product_id' })
+    )
+  } catch { /* offline — localStorage already saved by toggleWishlist */ }
+}
+
+/** Remove a single product from the user's DB wishlist (fire-and-forget). */
+export const removeFromWishlistDB = async (userId, productId) => {
+  if (!userId || isDemo()) return
+  try {
+    await sbFetch(() =>
+      supabase.from('wishlists').delete().eq('user_id', userId).eq('product_id', productId)
+    )
+  } catch { /* offline */ }
+}
+
+// ── Cart DB ───────────────────────────────────────────────────
+
+/**
+ * Load all cart items for a user from Supabase.
+ * Returns array of { product, size, qty, measurements } or null when offline.
+ */
+export const getCartItemsDB = async (userId) => {
+  if (!userId || isDemo()) return null
+  try {
+    const { data, error } = await sbFetch(() =>
+      supabase.from('cart_items')
+        .select('product_id, quantity, size, product_snapshot, measurements')
+        .eq('user_id', userId)
+    )
+    if (error) throw error
+    if (!data?.length) return []
+    return data
+      .filter(r => r.product_snapshot)
+      .map(r => ({
+        product: r.product_snapshot,
+        size: r.size,
+        qty: r.quantity,
+        measurements: r.measurements || null,
+      }))
+  } catch { return null }
+}
+
+/** Upsert one cart line (product + size) in the DB (fire-and-forget). */
+export const upsertCartItemDB = async (userId, { productId, size, qty, productSnapshot, measurements }) => {
+  if (!userId || isDemo()) return
+  try {
+    await sbFetch(() =>
+      supabase.from('cart_items').upsert(
+        {
+          user_id: userId,
+          product_id: productId,
+          size,
+          quantity: qty,
+          product_snapshot: productSnapshot,
+          measurements: measurements || null,
+        },
+        { onConflict: 'user_id,product_id,size' }
+      )
+    )
+  } catch { /* offline */ }
+}
+
+/** Remove one cart line from the DB (fire-and-forget). */
+export const removeCartItemDB = async (userId, productId, size) => {
+  if (!userId || isDemo()) return
+  try {
+    await sbFetch(() =>
+      supabase.from('cart_items')
+        .delete()
+        .eq('user_id', userId)
+        .eq('product_id', productId)
+        .eq('size', size)
+    )
+  } catch { /* offline */ }
+}
+
+/** Delete all cart items for a user from the DB (fire-and-forget). */
+export const clearCartDB = async (userId) => {
+  if (!userId || isDemo()) return
+  try {
+    await sbFetch(() =>
+      supabase.from('cart_items').delete().eq('user_id', userId)
+    )
+  } catch { /* offline */ }
+}
+
+/**
+ * Returns wishlist stats grouped by product for the Admin dashboard.
+ * Returns an object keyed by product_id: { product, count, users[] }
+ * Returns null when offline/demo (caller should fall back to localStorage).
+ */
+export const getWishlistSummaryDB = async () => {
+  if (isDemo()) return null
+  try {
+    const { data, error } = await sbFetch(() =>
+      supabase.from('wishlists').select('user_id, product_id, product_snapshot')
+    )
+    if (error) throw error
+    const grouped = {}
+    for (const row of (data || [])) {
+      if (!grouped[row.product_id]) {
+        grouped[row.product_id] = {
+          count: 0,
+          users: [],
+          product: row.product_snapshot || { id: row.product_id },
+        }
+      }
+      grouped[row.product_id].count++
+      grouped[row.product_id].users.push(row.user_id)
+    }
+    return grouped
+  } catch { return null }
 }
 
 // ── Column mappers ────────────────────────────────────────────
@@ -564,14 +950,17 @@ function appProductToDB(p, includeImages = true) {
     badge: p.badge,
     rating: p.rating,
     reviews: p.reviews,
-    img: p.img,
-    img_alt: p.imgAlt,
-    description: p.description,
+    img: p.img || '',
+    img_alt: p.imgAlt || '',
+    description: p.description || '',
+    material: p.material || null,
+    care_instructions: p.careInstructions || null,
     sizes: p.sizes,
     colors: p.colors,
     delivery_days: p.deliveryDays,
     stock: p.stock,
     active: p.active !== false,
+    added_at: p.addedAt || new Date().toISOString(),
   }
 
   if (includeImages) {
@@ -600,10 +989,13 @@ function dbProductToApp(r) {
     images: imageList.length ? imageList : [primaryImage].filter(Boolean),
     imgAlt: r.img_alt,
     description: r.description,
+    material: r.material || '',
+    careInstructions: r.care_instructions || '',
     sizes: r.sizes || [],
     colors: r.colors || [],
     deliveryDays: r.delivery_days,
     stock: r.stock,
     active: r.active,
+    addedAt: r.added_at,
   }
 }

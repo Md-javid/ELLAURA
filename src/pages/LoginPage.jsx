@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Eye, EyeOff, ArrowLeft, Sparkles, User, Mail, Phone, MapPin, Heart, Info } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, Sparkles, User, Mail, Phone, MapPin, Heart, Info, Lock } from 'lucide-react'
 import { signIn, signUp, DEMO_MODE, isSupabaseOffline } from '../lib/supabase'
 import { useAuth, useUI } from '../context/AppContext'
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || 'admin@ellaura.in'
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'Ellaura@2026'
 const ADMIN_SESSION_KEY = 'ellaura_admin_session'
-const ADMIN_ACCOUNTS_KEY = 'ellaura_admin_accounts'
+const ADMIN_ACCOUNTS_KEY = 'ellaura_admin_accounts_v2' // must match AdminPage.jsx
+
+// SHA-256 hash — identical to AdminPage.jsx so password changes take effect everywhere
+const hashPasswordAsync = async (pw) => {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw))
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
 
 const STYLE_OPTIONS = [
   { key: 'cocktail', label: '🍸 Cocktail & Rooftop', desc: 'Elegant evening wear' },
-  { key: 'club', label: '🌙 Club & Lounge', desc: 'Bold night-out looks' },
-  { key: 'both', label: '✨ Both vibes', desc: "I dress for every night" },
+  { key: 'club', label: '🌙 Club & Lounge', desc: 'Bold party & event looks' },
+  { key: 'both', label: '✨ Both vibes', desc: "I dress for every occasion" },
 ]
 
 export default function LoginPage() {
@@ -39,6 +44,28 @@ export default function LoginPage() {
     if (user) navigate(redirect === 'checkout' ? '/checkout' : '/', { replace: true })
   }, [user])
 
+  // Auto-reseed admin accounts if env credentials changed (runs on page load)
+  useEffect(() => {
+    const reseed = async () => {
+      const hash = await hashPasswordAsync(import.meta.env.VITE_ADMIN_PASSWORD || 'Ellaura@2026')
+      const seed = [{ email: ADMIN_EMAIL, password: hash }]
+      try {
+        const raw = localStorage.getItem(ADMIN_ACCOUNTS_KEY)
+        if (!raw) {
+          localStorage.setItem(ADMIN_ACCOUNTS_KEY, JSON.stringify(seed))
+        } else {
+          const parsed = JSON.parse(raw)
+          if (!parsed.some(a => a.email === ADMIN_EMAIL)) {
+            localStorage.setItem(ADMIN_ACCOUNTS_KEY, JSON.stringify(seed))
+          }
+        }
+      } catch {
+        localStorage.setItem(ADMIN_ACCOUNTS_KEY, JSON.stringify(seed))
+      }
+    }
+    reseed()
+  }, [])
+
   const set = (key) => (e) => {
     setForm(f => ({ ...f, [key]: e.target.value }))
     setError('')
@@ -50,23 +77,24 @@ export default function LoginPage() {
     setError('')
 
     // ── Admin shortcut: check against local admin credentials ──
-    const accounts = (() => {
+    const rawAccounts = localStorage.getItem(ADMIN_ACCOUNTS_KEY)
+    if (rawAccounts) {
       try {
-        const raw = localStorage.getItem(ADMIN_ACCOUNTS_KEY)
-        return raw ? JSON.parse(raw) : [{ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }]
-      } catch { return [{ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }] }
-    })()
-    const adminMatch = accounts.find(a => a.email === form.email && a.password === form.password)
-    if (adminMatch) {
-      localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now(), email: adminMatch.email }))
-      setLoading(false)
-      navigate('/admin', { replace: true })
-      return
+        const accounts = JSON.parse(rawAccounts)
+        const inputHash = await hashPasswordAsync(form.password)
+        const adminMatch = accounts.find(a => a.email === form.email && a.password === inputHash)
+        if (adminMatch) {
+          sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now(), email: adminMatch.email }))
+          setLoading(false)
+          navigate('/admin', { replace: true })
+          return
+        }
+      } catch { /* malformed localStorage — fall through */ }
     }
 
     try {
       await signIn({ email: form.email, password: form.password })
-      showToast('Welcome back! 💖', 'success')
+      showToast('Welcome back!', 'success')
       navigate(redirect === 'checkout' ? '/checkout' : '/', { replace: true })
     } catch (err) {
       const msg = err.message || ''
@@ -154,7 +182,7 @@ export default function LoginPage() {
             {/* Brand */}
             <div className="text-center mb-8">
               <p className="font-serif text-2xl font-bold text-rose-gold tracking-widest">ELLAURA</p>
-              <p className="text-[9px] tracking-[0.4em] text-white/20 uppercase mt-1">Couture Nights</p>
+              <p className="text-[9px] tracking-[0.4em] text-white/20 uppercase mt-1">Couture</p>
             </div>
 
             {/* Mode toggle */}
@@ -207,6 +235,7 @@ export default function LoginPage() {
                 <div>
                   <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Password</label>
                   <div className={wrapClass}>
+                    <Lock className="w-4 h-4 text-white/30 flex-shrink-0" />
                     <input
                       type={showPass ? 'text' : 'password'}
                       placeholder="Enter password"
@@ -281,6 +310,7 @@ export default function LoginPage() {
                 <div>
                   <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Password *</label>
                   <div className={wrapClass}>
+                    <Lock className="w-4 h-4 text-white/30 flex-shrink-0" />
                     <input
                       type={showPass ? 'text' : 'password'}
                       placeholder="Min. 8 characters"
