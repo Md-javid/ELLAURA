@@ -92,7 +92,7 @@ export default function Hero() {
       </div>
 
       {/* ── Content grid ── */}
-      <div className="relative z-10 flex-1 flex items-center max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-12 sm:pt-20 lg:pt-24 pb-10 sm:pb-16">
+      <div className="relative z-10 flex-1 flex items-center max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6 sm:pt-20 lg:pt-24 pb-10 sm:pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center w-full">
 
           {/* ── Left: Text ── */}
