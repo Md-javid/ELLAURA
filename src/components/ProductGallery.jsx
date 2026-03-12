@@ -270,13 +270,17 @@ export default function ProductGallery() {
   // Fetch from Supabase on mount; fall back to localStorage/static when offline or DB is empty
   useEffect(() => {
     getProducts().then(dbProducts => {
-      // DB has products → use it as source of truth
-      // DB is empty (null = offline, [] = no rows yet) → fall back to localStorage/static
-      const products = (dbProducts && dbProducts.length > 0)
-        ? dbProducts.filter(p => p.active !== false)
-        : getLiveProducts()
-      setAllProducts(products)
-      setDisplayed(products)
+      // null = offline/error → fall back to localStorage/static
+      // [] or [...] = Supabase responded → use it as source of truth (even if empty)
+      if (dbProducts === null) {
+        const products = getLiveProducts()
+        setAllProducts(products)
+        setDisplayed(products)
+      } else {
+        const products = dbProducts.filter(p => p.active !== false)
+        setAllProducts(products)
+        setDisplayed(products)
+      }
     }).catch(() => {
       const products = getLiveProducts()
       setAllProducts(products)
