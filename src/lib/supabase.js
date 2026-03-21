@@ -1038,10 +1038,12 @@ export const adminSignIn = async (email, password) => {
 const STORAGE_BUCKET = 'product-images'
 
 /**
- * Converts a file to a base64 dataURL (offline/fallback mode).
+ * Converts an image file to a base64 dataURL.
+ * Simple, always works — no auth or storage bucket required.
  */
-const fileToDataURL = (file) =>
+export const uploadProductImage = (file) =>
   new Promise((resolve, reject) => {
+    if (!file) return reject(new Error('No file provided'))
     const reader = new FileReader()
     reader.onload = (e) => resolve(e.target.result)
     reader.onerror = () => reject(new Error('Failed to read file'))
@@ -1049,61 +1051,13 @@ const fileToDataURL = (file) =>
   })
 
 /**
- * Uploads a single product image to Supabase Storage.
- * If storage is unavailable (no session, bucket missing, RLS rejection),
- * automatically falls back to base64 dataURL — upload always succeeds.
- * Returns the public CDN URL (storage) or dataURL (fallback).
+ * Converts multiple image files to base64 dataURLs concurrently.
+ * Returns array of dataURL strings — skips any that fail.
  */
-export const uploadProductImage = async (file, productId = 'temp') => {
-  // Always use base64 in demo/offline mode
-  if (isDemo()) return fileToDataURL(file)
-
-  // Check if there is an active Supabase session
-  let hasSession = false
-  try {
-    const { data } = await supabase.auth.getSession()
-    hasSession = !!data?.session
-  } catch { /* ignore */ }
-
-  if (hasSession) {
-    // Try Supabase Storage upload
-    try {
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
-      const safeName = `${productId.replace(/[^a-z0-9_-]/gi, '_')}/${Date.now()}.${ext}`
-      const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(safeName, file, {
-        upsert: true,
-        contentType: file.type,
-        cacheControl: '3600',
-      })
-      if (!error) {
-        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(safeName)
-        console.info('[Ellaura] Image uploaded to Supabase Storage:', data.publicUrl)
-        return data.publicUrl
-      }
-      // Log the storage error but fall through to base64
-      console.warn('[Ellaura] Storage upload failed, falling back to base64:', error.message)
-    } catch (err) {
-      console.warn('[Ellaura] Storage exception, falling back to base64:', err.message)
-    }
-  } else {
-    console.info('[Ellaura] No Supabase session — using base64 fallback for image upload.')
-  }
-
-  // Fallback: base64 dataURL (always works)
-  return fileToDataURL(file)
-}
-
-/**
- * Uploads multiple images concurrently. Returns array of public URLs.
- * Skips failed uploads (logs warning) so one bad file doesn't block the rest.
- */
-export const uploadProductImages = async (files, productId = 'temp') => {
+export const uploadProductImages = async (files) => {
   const results = await Promise.allSettled(
-    Array.from(files).map((file) => uploadProductImage(file, productId))
+    Array.from(files).map((file) => uploadProductImage(file))
   )
-  results
-    .filter((r) => r.status === 'rejected')
-    .forEach((r) => console.warn('[Ellaura] Image upload failed:', r.reason))
   return results
     .filter((r) => r.status === 'fulfilled')
     .map((r) => r.value)

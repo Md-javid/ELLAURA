@@ -5,21 +5,36 @@ import { getLiveProducts, COLOR_SWATCHES } from '../lib/products'
 import { getProducts } from '../lib/supabase'
 
 // ── Vibe Toggle ────────────────────────────────────────────────
+const VIBES = [
+  { key: 'western', icon: Zap,  label: 'Western Wear', color: 'from-[#b76e79] to-[#8b4f5a]', shadow: 'shadow-[#b76e79]/30' },
+  { key: 'club',    icon: Moon, label: 'Club Wear',    color: 'from-[#6366f1] to-[#4f46e5]', shadow: 'shadow-[#6366f1]/30' },
+  { key: 'all',     icon: null, label: 'All Pieces',   color: 'from-white/20 to-white/5',    shadow: 'shadow-white/10' },
+]
+
 function VibeToggle({ vibe, onToggle }) {
+  const activeIdx = VIBES.findIndex(v => v.key === vibe)
+
   return (
-    <div className="glass rounded-2xl p-1.5 flex items-center gap-1 w-fit">
-      {[
-        { key: 'cocktail', icon: Zap, label: 'Cocktail Hour', active: 'from-[#b76e79] to-[#8b4f5a] shadow-[#b76e79]/30' },
-        { key: 'club', icon: Moon, label: 'Club & Party', active: 'from-[#6366f1] to-[#4f46e5] shadow-[#6366f1]/30' },
-        { key: 'all', icon: null, label: 'All Pieces', active: 'from-white/15 to-white/5 shadow-white/10' },
-      ].map(({ key, icon: Icon, label, active }) => (
+    <div className="relative glass rounded-2xl p-1.5 flex items-center w-fit overflow-hidden">
+      {/* Sliding pill */}
+      <div
+        className="absolute top-1.5 bottom-1.5 rounded-xl transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none"
+        style={{
+          left: `calc(${activeIdx} * (100% - 12px) / ${VIBES.length} + 6px)`,
+          width: `calc((100% - 12px) / ${VIBES.length})`,
+          background: `linear-gradient(135deg, var(--pill-from), var(--pill-to))`,
+          '--pill-from': VIBES[activeIdx]?.key === 'western' ? '#b76e79' : VIBES[activeIdx]?.key === 'club' ? '#6366f1' : 'rgba(255,255,255,0.18)',
+          '--pill-to':   VIBES[activeIdx]?.key === 'western' ? '#8b4f5a' : VIBES[activeIdx]?.key === 'club' ? '#4f46e5' : 'rgba(255,255,255,0.08)',
+          boxShadow: activeIdx === 0 ? '0 4px 16px rgba(183,110,121,0.35)' : activeIdx === 1 ? '0 4px 16px rgba(99,102,241,0.35)' : '0 2px 8px rgba(255,255,255,0.10)',
+        }}
+      />
+      {VIBES.map(({ key, icon: Icon, label }) => (
         <button
           key={key}
           onClick={() => onToggle(key)}
-          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[12px] font-medium tracking-wide transition-all duration-500 ${vibe === key
-              ? `bg-gradient-to-r ${active} text-white shadow-lg`
-              : 'text-white/50 hover:text-white/70'
-            }`}
+          className={`relative z-10 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[12px] font-medium tracking-wide transition-colors duration-300 whitespace-nowrap ${
+            vibe === key ? 'text-white' : 'text-white/50 hover:text-white/75'
+          }`}
         >
           {Icon && <Icon className="w-3.5 h-3.5" />}
           {label}
@@ -267,13 +282,22 @@ export default function ProductGallery() {
   const [allProducts, setAllProducts] = useState([])
   const [displayed, setDisplayed] = useState([])
 
-  // Fetch from Supabase on mount; fall back to localStorage/static when offline or DB is empty
+  // Fetch from Supabase on mount.
+  // - null = offline/error → show localStorage products
+  // - []   = Supabase is live but empty → also merge localStorage so locally-saved products appear
+  // - [...] = Supabase has products → use as source of truth
   useEffect(() => {
     getProducts().then(dbProducts => {
-      // null = offline/error → fall back to localStorage/static
-      // [] or [...] = Supabase responded → use it as source of truth (even if empty)
       if (dbProducts === null) {
+        // Offline/error → use localStorage
         const products = getLiveProducts()
+        setAllProducts(products)
+        setDisplayed(products)
+      } else if (dbProducts.length === 0) {
+        // Supabase is reachable but empty → also check localStorage
+        // (product may have been saved locally when DB sync failed)
+        const local = getLiveProducts()
+        const products = local.filter(p => p.active !== false)
         setAllProducts(products)
         setDisplayed(products)
       } else {
@@ -289,7 +313,9 @@ export default function ProductGallery() {
   }, [])
 
   const filterByVibe = (products, v) =>
-    v === 'all' ? products : products.filter(p => p.vibe?.includes(v))
+    v === 'all' ? products : products.filter(p =>
+      p.vibe?.includes(v) || p.category?.toLowerCase().includes(v)
+    )
 
   const handleVibeToggle = (newVibe) => {
     if (newVibe === vibe) return
@@ -298,7 +324,7 @@ export default function ProductGallery() {
       setVibe(newVibe)
       setDisplayed(filterByVibe(allProducts, newVibe))
       setTransitioning(false)
-    }, 250)
+    }, 200)
   }
 
   return (
