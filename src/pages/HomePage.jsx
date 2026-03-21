@@ -230,20 +230,25 @@ function Footer() {
           </div>
         </div>
 
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-[11px] text-white/20 tracking-wide">
-            © 2026 Ellaura. All rights reserved.
+        <div className="pt-8 flex flex-col items-center gap-3">
+          {/* Legal links — centered, well away from the chatbot bottom-right */}
+          <p className="text-[11px] text-white/20 flex items-center gap-2 flex-wrap justify-center">
+            <Link to="/privacy" className="hover:text-white/50 transition-colors">Privacy</Link>
+            <span className="text-white/10">·</span>
+            <Link to="/terms" className="hover:text-white/50 transition-colors">Terms</Link>
+            <span className="text-white/10">·</span>
+            <Link to="/care" className="hover:text-white/50 transition-colors">Care</Link>
+            <span className="text-white/10">·</span>
+            <Link to="/cookies" className="hover:text-white/50 transition-colors">Cookies</Link>
           </p>
-          <p className="text-[11px] text-white/20 flex items-center gap-1.5">
-            Made with <Heart className="w-3 h-3 text-[#b76e79] fill-[#b76e79]" /> in Coimbatore
-          </p>
-          <p className="text-[11px] text-white/15">
-            <Link to="/privacy" className="hover:text-white/40 transition-colors">Privacy</Link>
-            {' · '}
-            <Link to="/terms" className="hover:text-white/40 transition-colors">Terms</Link>
-            {' · '}
-            <Link to="/privacy" className="hover:text-white/40 transition-colors">Cookies</Link>
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <p className="text-[11px] text-white/20 tracking-wide">
+              © 2026 Ellaura. All rights reserved.
+            </p>
+            <p className="text-[11px] text-white/20 flex items-center gap-1.5">
+              Made with <Heart className="w-3 h-3 text-[#b76e79] fill-[#b76e79]" /> in Coimbatore
+            </p>
+          </div>
         </div>
       </div>
     </footer>

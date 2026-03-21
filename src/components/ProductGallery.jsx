@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Heart, Star, Zap, Moon, ShoppingBag, Eye, X, Shirt, ExternalLink, Scissors, Gem, Truck } from 'lucide-react'
 import { useCart, useUI } from '../context/AppContext'
 import { getLiveProducts, COLOR_SWATCHES } from '../lib/products'
@@ -6,33 +6,47 @@ import { getProducts } from '../lib/supabase'
 
 // ── Vibe Toggle ────────────────────────────────────────────────
 const VIBES = [
-  { key: 'western', icon: Zap,  label: 'Western Wear', color: 'from-[#b76e79] to-[#8b4f5a]', shadow: 'shadow-[#b76e79]/30' },
-  { key: 'club',    icon: Moon, label: 'Club Wear',    color: 'from-[#6366f1] to-[#4f46e5]', shadow: 'shadow-[#6366f1]/30' },
-  { key: 'all',     icon: null, label: 'All Pieces',   color: 'from-white/20 to-white/5',    shadow: 'shadow-white/10' },
+  { key: 'western', icon: Zap,  label: 'Western Wear' },
+  { key: 'club',    icon: Moon, label: 'Club Wear'    },
+  { key: 'all',     icon: null, label: 'All Pieces'   },
 ]
 
+const PILL_COLORS = {
+  western: { from: '#b76e79', to: '#8b4f5a', shadow: '0 4px 16px rgba(183,110,121,0.40)' },
+  club:    { from: '#6366f1', to: '#4f46e5', shadow: '0 4px 16px rgba(99,102,241,0.40)'  },
+  all:     { from: 'rgba(255,255,255,0.18)', to: 'rgba(255,255,255,0.06)', shadow: '0 2px 8px rgba(255,255,255,0.08)' },
+}
+
 function VibeToggle({ vibe, onToggle }) {
-  const activeIdx = VIBES.findIndex(v => v.key === vibe)
+  const btnRefs = useRef([])
+  const [pillStyle, setPillStyle] = useState({})
+
+  useEffect(() => {
+    const idx = VIBES.findIndex(v => v.key === vibe)
+    const btn = btnRefs.current[idx]
+    if (!btn) return
+    const c = PILL_COLORS[vibe] || PILL_COLORS.all
+    setPillStyle({
+      left:       btn.offsetLeft,
+      width:      btn.offsetWidth,
+      background: `linear-gradient(135deg, ${c.from}, ${c.to})`,
+      boxShadow:  c.shadow,
+    })
+  }, [vibe])
 
   return (
     <div className="relative glass rounded-2xl p-1.5 flex items-center w-fit overflow-hidden">
-      {/* Sliding pill */}
+      {/* Sliding pill — positioned by measuring actual button widths */}
       <div
-        className="absolute top-1.5 bottom-1.5 rounded-xl transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none"
-        style={{
-          left: `calc(${activeIdx} * (100% - 12px) / ${VIBES.length} + 6px)`,
-          width: `calc((100% - 12px) / ${VIBES.length})`,
-          background: `linear-gradient(135deg, var(--pill-from), var(--pill-to))`,
-          '--pill-from': VIBES[activeIdx]?.key === 'western' ? '#b76e79' : VIBES[activeIdx]?.key === 'club' ? '#6366f1' : 'rgba(255,255,255,0.18)',
-          '--pill-to':   VIBES[activeIdx]?.key === 'western' ? '#8b4f5a' : VIBES[activeIdx]?.key === 'club' ? '#4f46e5' : 'rgba(255,255,255,0.08)',
-          boxShadow: activeIdx === 0 ? '0 4px 16px rgba(183,110,121,0.35)' : activeIdx === 1 ? '0 4px 16px rgba(99,102,241,0.35)' : '0 2px 8px rgba(255,255,255,0.10)',
-        }}
+        className="absolute top-1.5 bottom-1.5 rounded-xl pointer-events-none"
+        style={{ transition: 'left 0.38s cubic-bezier(0.34,1.4,0.64,1), width 0.38s cubic-bezier(0.34,1.4,0.64,1), background 0.3s ease, box-shadow 0.3s ease', ...pillStyle }}
       />
-      {VIBES.map(({ key, icon: Icon, label }) => (
+      {VIBES.map(({ key, icon: Icon, label }, i) => (
         <button
           key={key}
+          ref={el => { btnRefs.current[i] = el }}
           onClick={() => onToggle(key)}
-          className={`relative z-10 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[12px] font-medium tracking-wide transition-colors duration-300 whitespace-nowrap ${
+          className={`relative z-10 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[12px] font-medium tracking-wide transition-colors duration-250 whitespace-nowrap ${
             vibe === key ? 'text-white' : 'text-white/50 hover:text-white/75'
           }`}
         >
@@ -43,6 +57,7 @@ function VibeToggle({ vibe, onToggle }) {
     </div>
   )
 }
+
 
 // ── Size Picker Modal (centered popup before add-to-bag) ──────
 function SizePickerModal({ product, onSelect, onClose }) {

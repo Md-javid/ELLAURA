@@ -17,6 +17,8 @@ import OrdersPage from './pages/OrdersPage'
 import NotFoundPage from './pages/NotFoundPage'
 import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
+import CarePage from './pages/CarePage'
+import CookiesPage from './pages/CookiesPage'
 
 // ── Admin route guard ────────────────────────────────────────
 // Blocks regular logged-in customers from accessing /admin.
@@ -77,6 +79,8 @@ export default function App() {
         <Route path="/lookbook" element={<LookbookPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/care" element={<CarePage />} />
+        <Route path="/cookies" element={<CookiesPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
 
