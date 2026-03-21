@@ -246,9 +246,9 @@ export default function ComingSoonPage() {
           style={{ animationDelay: '0.85s', animationFillMode: 'both' }}
         >
           {[
-            { Icon: Scissors,    color: 'text-[#b76e79]', bg: 'bg-[#b76e79]/10 border-[#b76e79]/25',   title: 'Custom Stitched',   desc: 'Every piece made to your exact measurements' },
-            { Icon: Truck,       color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/25',   title: 'Express Delivery',  desc: 'Swift, tracked shipping straight to your door' },
-            { Icon: Gem,         color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/25', title: 'Premium Fabrics',   desc: 'Velvet, satin & silk — nothing less' },
+            { Icon: Scissors, color: 'text-[#b76e79]', bg: 'bg-[#b76e79]/10 border-[#b76e79]/25', title: 'Custom Stitched', desc: 'Every piece crafted to your exact measurements' },
+            { Icon: Truck,    color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/25',  title: 'Express Delivery', desc: 'Swift, tracked shipping straight to your door' },
+            { Icon: Gem,      color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/25', title: 'Artisan Crafted',  desc: 'Hand-stitched by our skilled team in Coimbatore' },
           ].map(({ Icon, color, bg, title, desc }) => (
             <div
               key={title}
@@ -263,6 +263,32 @@ export default function ComingSoonPage() {
               <p className="text-[11px] text-white/35 leading-relaxed">{desc}</p>
             </div>
           ))}
+        </div>
+
+        {/* Company info + care promise */}
+        <div
+          className="w-full max-w-2xl mt-8 animate-fadeIn"
+          style={{ animationDelay: '1s', animationFillMode: 'both' }}
+        >
+          <div className="glass-premium rounded-2xl border border-purple-500/10 p-6">
+            <p className="text-[10px] tracking-[0.3em] text-white/25 uppercase text-center mb-4">About Ellaura</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+              {[
+                { emoji: '📍', label: 'Based in',     value: 'Coimbatore, Tamil Nadu, India' },
+                { emoji: '🧵', label: 'Craft',         value: 'Hand-stitched & made to order — no mass production' },
+                { emoji: '💜', label: 'Our Promise',   value: 'Every garment cared for with the same love you deserve' },
+                { emoji: '📦', label: 'Delivery Care', value: 'Packed with tissue & sealed to keep your piece pristine' },
+              ].map(({ emoji, label, value }) => (
+                <div key={label} className="flex items-start gap-3">
+                  <span className="text-lg flex-shrink-0 mt-0.5">{emoji}</span>
+                  <div>
+                    <p className="text-[10px] tracking-[0.15em] text-white/25 uppercase">{label}</p>
+                    <p className="text-[12px] text-white/55 leading-relaxed mt-0.5">{value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Hidden admin link — invisible dot, only for brand owner */}

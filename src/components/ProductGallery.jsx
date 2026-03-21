@@ -359,9 +359,9 @@ export default function ProductGallery() {
             {/* Tease cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {[
-                { Icon: Scissors, color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/25', title: 'Custom Stitched',   desc: 'Made to your measurements' },
-                { Icon: Truck,    color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/25', title: 'Express Delivery',   desc: 'From artisan to your door' },
-                { Icon: Gem,      color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/25', title: 'Premium Fabrics',    desc: 'Velvet, satin & silk' },
+                { Icon: Scissors, color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/25', title: 'Custom Stitched',  desc: 'Made to your measurements' },
+                { Icon: Truck,    color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/25', title: 'Express Delivery',  desc: 'From artisan to your door' },
+                { Icon: Gem,      color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/25', title: 'Artisan Crafted',   desc: 'Hand-stitched in Coimbatore' },
               ].map(({ Icon, color, bg, title, desc }) => (
                 <div key={title} className="glass-liquid rounded-2xl border border-purple-500/10 p-4 text-center">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center mx-auto mb-2 border ${bg}`}>
@@ -369,6 +369,24 @@ export default function ProductGallery() {
                   </div>
                   <p className="text-[12px] font-semibold text-white/75 mb-0.5">{title}</p>
                   <p className="text-[11px] text-white/30">{desc}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Company info + care promise */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-0 mb-6 text-left">
+              {[
+                { emoji: '📍', label: 'Based in',      value: 'Coimbatore, Tamil Nadu' },
+                { emoji: '🧵', label: 'Craft',          value: 'Made to order, no mass production' },
+                { emoji: '💜', label: 'Our Promise',    value: 'Every piece cared for with love' },
+                { emoji: '📦', label: 'Delivery Care',  value: 'Tissue-packed & sealed' },
+              ].map(({ emoji, label, value }) => (
+                <div key={label} className="glass rounded-xl border border-white/8 p-3 flex items-start gap-2">
+                  <span className="text-base flex-shrink-0">{emoji}</span>
+                  <div>
+                    <p className="text-[9px] tracking-[0.15em] text-white/25 uppercase">{label}</p>
+                    <p className="text-[11px] text-white/50 leading-snug mt-0.5">{value}</p>
+                  </div>
                 </div>
               ))}
             </div>
