@@ -373,24 +373,6 @@ export default function ProductGallery() {
               ))}
             </div>
 
-            {/* Company info + care promise */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-0 mb-6 text-left">
-              {[
-                { emoji: '📍', label: 'Based in',      value: 'Coimbatore, Tamil Nadu' },
-                { emoji: '🧵', label: 'Craft',          value: 'Made to order, no mass production' },
-                { emoji: '💜', label: 'Our Promise',    value: 'Every piece cared for with love' },
-                { emoji: '📦', label: 'Delivery Care',  value: 'Tissue-packed & sealed' },
-              ].map(({ emoji, label, value }) => (
-                <div key={label} className="glass rounded-xl border border-white/8 p-3 flex items-start gap-2">
-                  <span className="text-base flex-shrink-0">{emoji}</span>
-                  <div>
-                    <p className="text-[9px] tracking-[0.15em] text-white/25 uppercase">{label}</p>
-                    <p className="text-[11px] text-white/50 leading-snug mt-0.5">{value}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
             {/* WhatsApp CTA */}
             <a
               href="https://wa.me/919087915193?text=Hi%20Ellaura!%20I%27d%20love%20to%20know%20when%20your%20collection%20launches%20%F0%9F%92%96"
