@@ -403,8 +403,6 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
           return { ...f, images: merged }
         })
       }
-    } catch {
-      alert('Some images failed to upload. Please try again.')
     } finally {
       setUploadingGallery(false)
       e.target.value = ''
@@ -486,8 +484,6 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
       const productId = form.id || `temp_${Date.now()}`
       const url = await uploadProductImage(file, productId)
       handleImgChange(url)
-    } catch {
-      alert('Failed to upload image to storage. Please try again or use URL mode.')
     } finally {
       setUploading(false)
       e.target.value = ''

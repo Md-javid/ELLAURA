@@ -1038,32 +1038,59 @@ export const adminSignIn = async (email, password) => {
 const STORAGE_BUCKET = 'product-images'
 
 /**
+ * Converts a file to a base64 dataURL (offline/fallback mode).
+ */
+const fileToDataURL = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => resolve(e.target.result)
+    reader.onerror = () => reject(new Error('Failed to read file'))
+    reader.readAsDataURL(file)
+  })
+
+/**
  * Uploads a single product image to Supabase Storage.
- * Falls back to base64 dataURL in demo/offline mode.
- * Returns the public URL string.
+ * If storage is unavailable (no session, bucket missing, RLS rejection),
+ * automatically falls back to base64 dataURL — upload always succeeds.
+ * Returns the public CDN URL (storage) or dataURL (fallback).
  */
 export const uploadProductImage = async (file, productId = 'temp') => {
-  if (isDemo()) {
-    // Demo mode: convert to data URL (stored locally)
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (e) => resolve(e.target.result)
-      reader.onerror = () => reject(new Error('Failed to read file'))
-      reader.readAsDataURL(file)
-    })
+  // Always use base64 in demo/offline mode
+  if (isDemo()) return fileToDataURL(file)
+
+  // Check if there is an active Supabase session
+  let hasSession = false
+  try {
+    const { data } = await supabase.auth.getSession()
+    hasSession = !!data?.session
+  } catch { /* ignore */ }
+
+  if (hasSession) {
+    // Try Supabase Storage upload
+    try {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+      const safeName = `${productId.replace(/[^a-z0-9_-]/gi, '_')}/${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(safeName, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: '3600',
+      })
+      if (!error) {
+        const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(safeName)
+        console.info('[Ellaura] Image uploaded to Supabase Storage:', data.publicUrl)
+        return data.publicUrl
+      }
+      // Log the storage error but fall through to base64
+      console.warn('[Ellaura] Storage upload failed, falling back to base64:', error.message)
+    } catch (err) {
+      console.warn('[Ellaura] Storage exception, falling back to base64:', err.message)
+    }
+  } else {
+    console.info('[Ellaura] No Supabase session — using base64 fallback for image upload.')
   }
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
-  const safeName = `${productId.replace(/[^a-z0-9_-]/gi, '_')}/${Date.now()}.${ext}`
-  const { error } = await sbFetch(() =>
-    supabase.storage.from(STORAGE_BUCKET).upload(safeName, file, {
-      upsert: true,
-      contentType: file.type,
-      cacheControl: '3600',
-    })
-  )
-  if (error) throw error
-  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(safeName)
-  return data.publicUrl
+
+  // Fallback: base64 dataURL (always works)
+  return fileToDataURL(file)
 }
 
 /**
