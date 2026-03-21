@@ -7,7 +7,7 @@ import {
   RefreshCw, IndianRupee, Tag, Mail, KeyRound, Shirt,
   ClipboardList, Truck, Clock, ChevronDown, MapPin, User as UserIcon, Heart,
 } from 'lucide-react'
-import { DEMO_MODE, getProducts, upsertProduct, deleteProduct, getAllOrders, updateOrderStatus, getWishlistSummaryDB } from '../lib/supabase'
+import { DEMO_MODE, adminSignIn, uploadProductImage, uploadProductImages, getProducts, upsertProduct, deleteProduct, getAllOrders, updateOrderStatus, getWishlistSummaryDB } from '../lib/supabase'
 
 // ── Admin config ──────────────────────────────────────────────
 const ADMIN_SESSION_KEY = 'ellaura_admin_session'
@@ -124,14 +124,43 @@ function AdminLogin({ onVerify }) {
     if (locked) return
     setLoading(true)
     setError('')
+
+    // ── Primary: Supabase Auth (live mode) ─────────────────────────
+    if (!DEMO_MODE) {
+      try {
+        const result = await adminSignIn(email, password)
+        if (result) {
+          clearAttempts()
+          sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now(), email }))
+          onVerify(email)
+          setLoading(false)
+          return
+        }
+        // result === null means network error — fall through to local auth
+      } catch (err) {
+        const { attempts, lockedUntil } = recordFail()
+        if (lockedUntil > Date.now()) {
+          setLockSeconds(getLockRemaining())
+          setError('Too many failed attempts. Locked for 5 minutes.')
+        } else {
+          const rem = MAX_ATTEMPTS - attempts
+          setError(rem > 0
+            ? `${err.message || 'Invalid credentials.'} ${rem} attempt${rem !== 1 ? 's' : ''} remaining.`
+            : 'Too many failed attempts.')
+        }
+        setLoading(false)
+        return
+      }
+    }
+
+    // ── Fallback: local SHA-256 hash (demo / Supabase unreachable) ───
     const accounts = await loadAdminAccountsAsync()
     const hash = await hashPasswordAsync(password)
     const match = accounts.find(a => a.email === email && a.password === hash)
     if (match) {
       clearAttempts()
-      const session = { ts: Date.now(), email: match.email }
-      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session))
-      onVerify()
+      sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ ts: Date.now(), email: match.email }))
+      onVerify(match.email)
     } else {
       const { attempts, lockedUntil } = recordFail()
       if (lockedUntil > Date.now()) {
@@ -358,28 +387,25 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
   const [rawSizes, setRawSizes] = useState((initial.sizes || []).join(', '))
   const [rawColors, setRawColors] = useState((initial.colors || []).join(', '))
 
-  const handleGalleryFilesUpload = (e) => {
+  const handleGalleryFilesUpload = async (e) => {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
     setUploadingGallery(true)
-    let loaded = 0
-    const dataUrls = []
-    files.forEach(file => {
-      if (!file.type.startsWith('image/')) { loaded++; if (loaded === files.length) finalize(); return }
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        dataUrls.push(ev.target.result)
-        loaded++
-        if (loaded === files.length) finalize()
+    try {
+      const productId = form.id || `temp_${Date.now()}`
+      const urls = await uploadProductImages(
+        files.filter(f => f.type.startsWith('image/')),
+        productId
+      )
+      if (urls.length > 0) {
+        setForm(f => {
+          const merged = [...new Set([...(f.images || []), ...urls].filter(Boolean))]
+          return { ...f, images: merged }
+        })
       }
-      reader.onerror = () => { loaded++; if (loaded === files.length) finalize() }
-      reader.readAsDataURL(file)
-    })
-    const finalize = () => {
-      setForm(f => {
-        const merged = [...new Set([...( f.images || []), ...dataUrls].filter(Boolean))]
-        return { ...f, images: merged }
-      })
+    } catch {
+      alert('Some images failed to upload. Please try again.')
+    } finally {
       setUploadingGallery(false)
       e.target.value = ''
     }
@@ -450,20 +476,22 @@ function ProductForm({ initial = EMPTY_PRODUCT, onSave, onCancel }) {
     })
   }
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) return alert('Please select an image file')
     if (file.size > 5 * 1024 * 1024) return alert('Image must be under 5MB')
     setUploading(true)
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const dataUrl = ev.target.result
-      handleImgChange(dataUrl)
+    try {
+      const productId = form.id || `temp_${Date.now()}`
+      const url = await uploadProductImage(file, productId)
+      handleImgChange(url)
+    } catch {
+      alert('Failed to upload image to storage. Please try again or use URL mode.')
+    } finally {
       setUploading(false)
+      e.target.value = ''
     }
-    reader.onerror = () => { setUploading(false); alert('Failed to read file') }
-    reader.readAsDataURL(file)
   }
 
   // Convert Google Drive share link to direct image URL

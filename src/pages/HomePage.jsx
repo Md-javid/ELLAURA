@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import Hero from '../components/Hero'
 import ProductGallery from '../components/ProductGallery'
 import { Instagram, Mail, Sparkles, Heart, X, Zap, Scissors, Gem, RotateCcw, Ruler, MoonStar, Star, MapPin } from 'lucide-react'
@@ -237,7 +238,11 @@ function Footer() {
             Made with <Heart className="w-3 h-3 text-[#b76e79] fill-[#b76e79]" /> in Coimbatore
           </p>
           <p className="text-[11px] text-white/15">
-            Privacy · Terms · Cookies
+            <Link to="/privacy" className="hover:text-white/40 transition-colors">Privacy</Link>
+            {' · '}
+            <Link to="/terms" className="hover:text-white/40 transition-colors">Terms</Link>
+            {' · '}
+            <Link to="/privacy" className="hover:text-white/40 transition-colors">Cookies</Link>
           </p>
         </div>
       </div>

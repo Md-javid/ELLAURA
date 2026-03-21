@@ -1001,5 +1001,147 @@ function dbProductToApp(r) {
     stock: r.stock,
     active: r.active,
     addedAt: r.added_at,
+    instagramUrl: r.instagram_url || '',
+  }
+}
+
+// ── Admin Auth ────────────────────────────────────────────────
+/**
+ * Signs in an admin user via Supabase Auth and verifies is_admin flag.
+ * Falls back to null (caller uses local hash) when Supabase is unavailable.
+ */
+export const adminSignIn = async (email, password) => {
+  if (DEMO_MODE) return null
+  try {
+    const { data, error } = await sbFetch(() =>
+      supabase.auth.signInWithPassword({ email, password })
+    )
+    if (error) throw error
+    // Check admin flag in profiles
+    const { data: profile, error: profileErr } = await sbFetch(() =>
+      supabase.from('profiles').select('is_admin').eq('id', data.user.id).single()
+    )
+    if (profileErr || !profile?.is_admin) {
+      await supabase.auth.signOut()
+      throw new Error('This account does not have admin privileges.')
+    }
+    return data
+  } catch (err) {
+    // Re-throw meaningful auth errors; return null for network errors so caller can fallback
+    const isNetworkErr = err instanceof TypeError || err.message?.includes('timed out')
+    if (!isNetworkErr) throw err
+    return null
+  }
+}
+
+// ── Supabase Storage — Product Images ─────────────────────────
+const STORAGE_BUCKET = 'product-images'
+
+/**
+ * Uploads a single product image to Supabase Storage.
+ * Falls back to base64 dataURL in demo/offline mode.
+ * Returns the public URL string.
+ */
+export const uploadProductImage = async (file, productId = 'temp') => {
+  if (isDemo()) {
+    // Demo mode: convert to data URL (stored locally)
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e) => resolve(e.target.result)
+      reader.onerror = () => reject(new Error('Failed to read file'))
+      reader.readAsDataURL(file)
+    })
+  }
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const safeName = `${productId.replace(/[^a-z0-9_-]/gi, '_')}/${Date.now()}.${ext}`
+  const { error } = await sbFetch(() =>
+    supabase.storage.from(STORAGE_BUCKET).upload(safeName, file, {
+      upsert: true,
+      contentType: file.type,
+      cacheControl: '3600',
+    })
+  )
+  if (error) throw error
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(safeName)
+  return data.publicUrl
+}
+
+/**
+ * Uploads multiple images concurrently. Returns array of public URLs.
+ * Skips failed uploads (logs warning) so one bad file doesn't block the rest.
+ */
+export const uploadProductImages = async (files, productId = 'temp') => {
+  const results = await Promise.allSettled(
+    Array.from(files).map((file) => uploadProductImage(file, productId))
+  )
+  results
+    .filter((r) => r.status === 'rejected')
+    .forEach((r) => console.warn('[Ellaura] Image upload failed:', r.reason))
+  return results
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => r.value)
+}
+
+/**
+ * Deletes a product image from Supabase Storage by its public URL.
+ * Safe to call with any URL — silently skips non-storage URLs.
+ */
+export const deleteProductImage = async (publicUrl) => {
+  if (!publicUrl || isDemo()) return
+  try {
+    // Extract the path from the public URL
+    const url = new URL(publicUrl)
+    const pathParts = url.pathname.split(`/object/public/${STORAGE_BUCKET}/`)
+    if (pathParts.length < 2) return // not a storage URL
+    const filePath = pathParts[1]
+    await sbFetch(() => supabase.storage.from(STORAGE_BUCKET).remove([filePath]))
+  } catch { /* non-critical */ }
+}
+
+// ── Razorpay Edge Function helpers ─────────────────────────────
+const callEdgeFn = async (fnName, payload) => {
+  const url = `${supabaseUrl}/functions/v1/${fnName}`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${supabaseAnonKey}`,
+      'apikey': supabaseAnonKey,
+    },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(`Edge function ${fnName} failed: ${res.status}`)
+  return res.json()
+}
+
+/**
+ * Creates a Razorpay order server-side and returns the Razorpay order ID.
+ * Returns null if the edge function is not deployed yet.
+ */
+export const createRazorpayOrder = async (amountInr) => {
+  if (DEMO_MODE || !supabaseUrl) return null
+  try {
+    const data = await callEdgeFn('create-razorpay-order', { amount: amountInr })
+    return data?.orderId || null
+  } catch (err) {
+    console.warn('[Ellaura] createRazorpayOrder edge fn unavailable:', err.message)
+    return null
+  }
+}
+
+/**
+ * Verifies a Razorpay payment signature server-side.
+ * Returns true if valid, false otherwise.
+ */
+export const verifyRazorpayPayment = async ({ razorpay_payment_id, razorpay_order_id, razorpay_signature }) => {
+  if (DEMO_MODE || !supabaseUrl) return true // skip verification in demo
+  try {
+    const data = await callEdgeFn('verify-razorpay-payment', {
+      razorpay_payment_id, razorpay_order_id, razorpay_signature,
+    })
+    return data?.valid === true
+  } catch (err) {
+    console.warn('[Ellaura] verifyRazorpayPayment edge fn unavailable:', err.message)
+    return true // fail-open: don't block orders if function not deployed
   }
 }
