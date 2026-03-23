@@ -479,25 +479,39 @@ export const getProducts = async () => {
 
 export const upsertProduct = async (product) => {
   if (isDemo()) return null
+
+  // Helper: detect any "column X not found" error from Supabase
+  const isMissingColumnErr = (msg) =>
+    /column\s+"?\w+"?\s+of\s+relation\s+"?products"?/i.test(msg) ||
+    /could not find the ['"]\w+['"] column of ['"]\w+['"]/i.test(msg) ||
+    /schema cache.*column/i.test(msg)
+
   try {
+    // Attempt 1: full payload including images + instagram_url
     const { data, error } = await sbFetch(() =>
       supabase.from('products').upsert(appProductToDB(product, true)).select().single()
     )
-    if (error) {
-      // Backward compatibility when DB schema doesn't yet have products.images.
-      const errMsg = error.message || ''
-      const missingImagesColumn =
-        /column\s+"?images"?\s+of\s+relation\s+"?products"?/i.test(errMsg) ||
-        /could not find the ['"]images['"] column of ['"]products['"]/i.test(errMsg)
-      if (!missingImagesColumn) throw error
+    if (!error) return dbProductToApp(data)
 
-      const retry = await sbFetch(() =>
-        supabase.from('products').upsert(appProductToDB(product, false)).select().single()
-      )
-      if (retry.error) throw retry.error
-      return dbProductToApp(retry.data)
-    }
-    return dbProductToApp(data)
+    if (!isMissingColumnErr(error.message || '')) throw error
+
+    // Attempt 2: drop `images` array (older schema without that column)
+    const payload2 = appProductToDB(product, false)
+    const retry2 = await sbFetch(() =>
+      supabase.from('products').upsert(payload2).select().single()
+    )
+    if (!retry2.error) return dbProductToApp(retry2.data)
+
+    if (!isMissingColumnErr(retry2.error.message || '')) throw retry2.error
+
+    // Attempt 3: also drop `instagram_url` (schema predating that column)
+    const payload3 = { ...payload2 }
+    delete payload3.instagram_url
+    const retry3 = await sbFetch(() =>
+      supabase.from('products').upsert(payload3).select().single()
+    )
+    if (retry3.error) throw retry3.error
+    return dbProductToApp(retry3.data)
   } catch { return null }
 }
 
@@ -965,6 +979,7 @@ function appProductToDB(p, includeImages = true) {
     stock: p.stock,
     active: p.active !== false,
     added_at: p.addedAt || new Date().toISOString(),
+    instagram_url: p.instagramUrl || null,
   }
 
   if (includeImages) {
