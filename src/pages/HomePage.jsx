@@ -307,10 +307,10 @@ function BrandStorySection() {
           {/* Right: quote + contact */}
           <div className="flex flex-col gap-6">
             {/* Quote card */}
-            <div className="glass-dark rounded-[28px] border border-[#b76e79]/20 p-8 relative overflow-hidden">
-              <div className="absolute -top-4 -left-2 text-[90px] text-[#b76e79]/8 font-serif leading-none select-none">&ldquo;</div>
+            <div className="glass-dark rounded-[28px] border border-[#b76e79]/20 p-8 relative">
+              <div className="text-[64px] text-[#b76e79]/25 font-serif leading-none select-none mb-2" style={{ lineHeight: '0.8', fontFamily: 'Georgia, serif' }}>&ldquo;</div>
               <p className="font-serif text-xl text-white/80 leading-relaxed relative z-10 mb-4">
-                We don’t make clothes for a body type. We make clothes for <em>your</em> body, your story, your moment.
+                We don't make clothes for a body type. We make clothes for <em>your</em> body, your story, your moment.
               </p>
               <p className="text-[11px] text-white/30 tracking-widest uppercase">— Ellaura Founders</p>
             </div>
