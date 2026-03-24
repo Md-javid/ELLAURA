@@ -277,7 +277,7 @@ function BrandStorySection() {
               Ellaura started with one simple belief — that every woman deserves to walk into a room and feel completely, unapologetically herself. Not squeezed into a standard size. Not settling for "close enough".
             </p>
             <p className="text-[15px] text-white/40 leading-relaxed mb-5">
-              Ellaura was built on one belief — that great fashion should fit the woman, not the other way around. Our designers and artisans based in Coimbatore hand-craft each piece to order. No warehouses. No mass production. Just your measurements, your fabric choice, and our hands.
+              At Ellaura, every piece begins with you. Our master artisans in Coimbatore translate your exact measurements and fabric preferences into a silhouette made exclusively for your body — with no compromises and no shortcuts.
             </p>
             <p className="text-[15px] text-white/40 leading-relaxed mb-8">
               Every Ellaura piece is a limited drop — designed around real occasions like brunches, rooftop dinners, cocktail evenings, and everything in between. When you wear Ellaura, you're wearing something that was literally made for you.
@@ -286,7 +286,7 @@ function BrandStorySection() {
             {/* Values */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { Icon: Gem, color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/20', title: 'Pure Craft', desc: 'Never mass produced' },
+                { Icon: Gem, color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/20', title: 'Pure Craft', desc: 'Exclusively yours' },
                 { Icon: Scissors, color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/20', title: 'Handcrafted', desc: 'Every stitch by our artisans' },
                 { Icon: MapPin, color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/20', title: 'Coimbatore made', desc: 'Proudly local, globally inspired' },
                 { Icon: Heart, color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/20', title: 'Made for you', desc: 'Your body, your story' },
