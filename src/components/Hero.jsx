@@ -99,18 +99,18 @@ export default function Hero() {
           <div className={`transition-all duration-700 ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             {/* Headline */}
             <h1 className="font-serif leading-[1.18] mb-6 pb-1">
-              <span className="block text-[clamp(3rem,8vw,5.5rem)] font-bold text-rose-gold">
+              <span className="block text-[clamp(3rem,8vw,5.5rem)] font-bold text-rose-gold drop-shadow-lg">
                 Own Every
               </span>
-              <span className="block text-[clamp(3rem,8vw,5.5rem)] font-bold text-rose-gold pb-2">
+              <span className="block text-[clamp(3rem,8vw,5.5rem)] font-bold text-rose-gold drop-shadow-lg pb-2">
                 Moment.
               </span>
-              <span className="block text-[clamp(1.1rem,2.5vw,1.5rem)] font-serif font-light text-white/70 mt-5 tracking-[0.08em] italic">
+              <span className="block text-[clamp(1.1rem,2.5vw,1.5rem)] font-serif font-light text-white/95 mt-5 tracking-[0.08em] italic drop-shadow">
                 Custom fits for every occasion.
               </span>
             </h1>
 
-            <p className="text-[15px] sm:text-base text-white/60 leading-relaxed mb-10 max-w-md font-light">
+            <p className="text-[15px] sm:text-base text-white/85 leading-relaxed mb-10 max-w-md font-light drop-shadow">
               Bespoke western &amp; occasion wear crafted for brunches, events &amp; evenings out.
               Every piece, exclusively yours — stitched in Coimbatore.
             </p>

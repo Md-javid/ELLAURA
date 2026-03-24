@@ -3,7 +3,7 @@ import {
   X, ChevronLeft, ChevronRight, Star, ShoppingBag, Heart,
   Clock, Package, Truck, RotateCcw, Info, ChevronDown, ChevronUp,
   Send, User as UserIcon, RotateCw, Shirt, Palette, Ruler, ExternalLink,
-  Plus, Trash2,
+  Plus, Trash2, ShieldCheck,
 } from 'lucide-react'
 import { useCart, useUI, useAuth } from '../context/AppContext'
 import { SIZE_CHART, COLOR_SWATCHES } from '../lib/products'
@@ -573,11 +573,23 @@ function StarInput({ value, onChange }) {
 // ── Reviews Section ────────────────────────────────────────────
 function ReviewsSection({ productId, initialRating, initialCount }) {
   const { user } = useAuth()
-  const [reviews, setReviews] = useState([])
+
+  const REVIEW_KEY = `ellaura_reviews_${productId}`
+
+  const [reviews, setReviews] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(REVIEW_KEY) || '[]') } catch { return [] }
+  })
   const [showForm, setShowForm] = useState(false)
   const [newReview, setNewReview] = useState({ rating: 0, text: '' })
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+
+  // Reload reviews when productId changes (different product opened)
+  useEffect(() => {
+    try { setReviews(JSON.parse(localStorage.getItem(`ellaura_reviews_${productId}`) || '[]')) } catch { setReviews([]) }
+    setSubmitted(false)
+    setShowForm(false)
+  }, [productId])
 
   const avgRating = reviews.length
     ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
@@ -587,20 +599,29 @@ function ReviewsSection({ productId, initialRating, initialCount }) {
     e.preventDefault()
     if (!newReview.rating || !newReview.text.trim()) return
     setSubmitting(true)
-    await new Promise(r => setTimeout(r, 800))
-    setReviews(prev => [{
+    await new Promise(r => setTimeout(r, 600))
+
+    const review = {
       id: Date.now(),
       name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Anonymous',
       rating: newReview.rating,
       text: newReview.text,
       date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
       verified: !!user,
-    }, ...prev])
+    }
+
+    setReviews(prev => {
+      const next = [review, ...prev]
+      // Persist immediately to localStorage so it survives reload
+      try { localStorage.setItem(REVIEW_KEY, JSON.stringify(next)) } catch {}
+      return next
+    })
     setNewReview({ rating: 0, text: '' })
     setSubmitting(false)
     setSubmitted(true)
     setShowForm(false)
   }
+
 
   return (
     <div className="mt-6">
@@ -966,9 +987,9 @@ export default function ProductModal() {
             {/* Trust badges */}
             <div className="grid grid-cols-3 gap-2">
               {[
-                { icon: Truck, label: 'Express Delivery' },
-                { icon: RotateCcw, label: '7-Day Return' },
-                { icon: Package, label: 'Custom Fit' },
+                { icon: Truck,        label: 'Express Delivery' },
+                { icon: ShieldCheck,  label: 'Fit Promise' },
+                { icon: Ruler,        label: 'Custom Fit' },
               ].map(({ icon: Icon, label }) => (
                 <div key={label} className="glass rounded-xl border border-white/8 py-2 px-1 text-center">
                   <Icon className="w-3.5 h-3.5 text-[#b76e79]/60 mx-auto mb-1" />

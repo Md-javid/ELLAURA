@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import {
   getWishlistDB, addToWishlistDB, removeFromWishlistDB,
   getCartItemsDB, upsertCartItemDB, removeCartItemDB, clearCartDB,
+  getProducts,
 } from '../lib/supabase'
 
 // ── Cart Context ───────────────────────────────────────────────
@@ -175,7 +176,6 @@ export function AppProvider({ children }) {
     const uid = user?.id
 
     if (!uid) {
-      // Logged out — clear in-memory cart; user-specific key is preserved in localStorage
       dispatch({ type: 'HYDRATE', items: [] })
       return
     }
@@ -193,18 +193,26 @@ export function AppProvider({ children }) {
       } catch { return base }
     }
 
-    getCartItemsDB(uid).then(dbItems => {
+    // Helper: remove cart items whose product no longer exists in live DB
+    const validateAgainstLiveProducts = async (items) => {
+      try {
+        const liveProducts = await getProducts()
+        if (!liveProducts || liveProducts.length === 0) return items // offline, keep as is
+        const liveIds = new Set(liveProducts.map(p => p.id))
+        return items.filter(i => {
+          const exists = liveIds.has(i.product.id)
+          if (!exists) console.info(`[Ellaura Cart] Removed deleted product: ${i.product.name}`)
+          return exists
+        })
+      } catch { return items }
+    }
+
+    getCartItemsDB(uid).then(async dbItems => {
       if (cancelled) return
+      let items
       if (dbItems !== null && dbItems.length > 0) {
-        // DB has items — merge with any guest additions
-        const items = mergeGuest(dbItems)
-        dispatch({ type: 'HYDRATE', items })
-        try { localStorage.setItem(cartKey(uid), JSON.stringify(items)) } catch {}
-        // Push any new guest items up to DB
-        items.filter(i => !dbItems.some(d => d.product.id === i.product.id && d.size === i.size))
-          .forEach(i => upsertCartItemDB(uid, { productId: i.product.id, size: i.size, qty: i.qty, productSnapshot: i.product, measurements: i.measurements }))
+        items = mergeGuest(dbItems)
       } else {
-        // DB empty or offline — restore from user-specific localStorage, then merge guest
         try {
           const key = cartKey(uid)
           const stored = localStorage.getItem(key)
@@ -215,13 +223,28 @@ export function AppProvider({ children }) {
             localStorage.removeItem('ellaura_cart')
             return it
           })() : []
-          const items = mergeGuest(base)
-          dispatch({ type: 'HYDRATE', items })
+          items = mergeGuest(base)
           if (dbItems !== null) {
-            // DB is online but empty — push items up
             items.forEach(i => upsertCartItemDB(uid, { productId: i.product.id, size: i.size, qty: i.qty, productSnapshot: i.product, measurements: i.measurements }))
           }
-        } catch { dispatch({ type: 'HYDRATE', items: [] }) }
+        } catch { items = [] }
+      }
+
+      // ── Validate: remove items deleted from admin panel ────────
+      const validItems = await validateAgainstLiveProducts(items)
+      if (cancelled) return
+      dispatch({ type: 'HYDRATE', items: validItems })
+      try { localStorage.setItem(cartKey(uid), JSON.stringify(validItems)) } catch {}
+
+      // Sync merged/validated items to DB
+      if (dbItems !== null) {
+        validItems
+          .filter(i => !dbItems.some(d => d.product.id === i.product.id && d.size === i.size))
+          .forEach(i => upsertCartItemDB(uid, { productId: i.product.id, size: i.size, qty: i.qty, productSnapshot: i.product, measurements: i.measurements }))
+        // Remove DB items that were deleted from admin
+        dbItems
+          .filter(d => !validItems.some(v => v.product.id === d.product.id && v.size === d.size))
+          .forEach(d => removeCartItemDB(uid, d.product.id, d.size))
       }
     })
     return () => { cancelled = true }

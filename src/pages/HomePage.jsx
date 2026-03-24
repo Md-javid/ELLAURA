@@ -133,9 +133,9 @@ function AboutSection() {
                   { step: '03', label: 'Our artisans hand-stitch your piece in Coimbatore' },
                   { step: '04', label: 'Delivered to your doorstep with care' },
                 ].map(({ step, label }) => (
-                  <div key={step} className="flex items-start gap-3">
-                    <span className="text-[11px] font-bold text-purple-400/80 bg-purple-500/10 rounded-lg px-2 py-1 flex-shrink-0">{step}</span>
-                    <p className="text-[12px] text-white/50 leading-relaxed pt-0.5">{label}</p>
+                  <div key={step} className="flex items-center gap-3">
+                    <span className="w-8 h-8 text-[11px] font-bold text-purple-400 bg-purple-500/10 rounded-lg flex items-center justify-center flex-shrink-0">{step}</span>
+                    <p className="text-[12px] text-white/50 leading-relaxed">{label}</p>
                   </div>
                 ))}
               </div>
@@ -152,7 +152,7 @@ function AboutSection() {
           </div>
 
           {/* Right: feature cards */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
             {[
               { Icon: Scissors, title: 'Custom Fit', sub: 'Your measurements, your silhouette', color: 'text-[#b76e79]' },
               { Icon: Sparkles, title: 'Hand Stitched', sub: 'Pure artisan craftsmanship', color: 'text-purple-400' },
@@ -277,7 +277,7 @@ function BrandStorySection() {
               Ellaura started with one simple belief — that every woman deserves to walk into a room and feel completely, unapologetically herself. Not squeezed into a standard size. Not settling for "close enough".
             </p>
             <p className="text-[15px] text-white/40 leading-relaxed mb-5">
-              We are a small team of designers and artisans based in Coimbatore who hand-craft each piece to order. No warehouses. No mass production. Just your measurements, your fabric choice, and our hands.
+              Ellaura was built on one belief — that great fashion should fit the woman, not the other way around. Our designers and artisans based in Coimbatore hand-craft each piece to order. No warehouses. No mass production. Just your measurements, your fabric choice, and our hands.
             </p>
             <p className="text-[15px] text-white/40 leading-relaxed mb-8">
               Every Ellaura piece is a limited drop — designed around real occasions like brunches, rooftop dinners, cocktail evenings, and everything in between. When you wear Ellaura, you're wearing something that was literally made for you.
@@ -286,10 +286,10 @@ function BrandStorySection() {
             {/* Values */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { Icon: Gem,      color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/20', title: 'Small batch',      desc: 'Never mass produced' },
-                { Icon: Scissors, color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/20', title: 'Handcrafted',      desc: 'Every stitch by our artisans' },
-                { Icon: MapPin,   color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/20', title: 'Coimbatore made',  desc: 'Proudly local, globally inspired' },
-                { Icon: Heart,    color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/20', title: 'Made for you',     desc: 'Your body, your story' },
+                { Icon: Gem, color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/20', title: 'Pure Craft', desc: 'Never mass produced' },
+                { Icon: Scissors, color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/20', title: 'Handcrafted', desc: 'Every stitch by our artisans' },
+                { Icon: MapPin, color: 'text-[#e8a0a8]', bg: 'bg-[#b76e79]/12 border-[#b76e79]/20', title: 'Coimbatore made', desc: 'Proudly local, globally inspired' },
+                { Icon: Heart, color: 'text-[#a78bfa]', bg: 'bg-[#6366f1]/12 border-[#6366f1]/20', title: 'Made for you', desc: 'Your body, your story' },
               ].map(({ Icon, color, bg, title, desc }) => (
                 <div key={title} className="glass rounded-2xl border border-white/8 px-4 py-3.5 flex items-start gap-3">
                   <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 border ${bg}`}>
@@ -307,10 +307,9 @@ function BrandStorySection() {
           {/* Right: quote + contact */}
           <div className="flex flex-col gap-6">
             {/* Quote card */}
-            <div className="glass-dark rounded-[28px] border border-[#b76e79]/20 p-8 relative">
-              <div className="text-[64px] text-[#b76e79]/25 font-serif leading-none select-none mb-2" style={{ lineHeight: '0.8', fontFamily: 'Georgia, serif' }}>&ldquo;</div>
-              <p className="font-serif text-xl text-white/80 leading-relaxed relative z-10 mb-4">
-                We don't make clothes for a body type. We make clothes for <em>your</em> body, your story, your moment.
+            <div className="glass-dark rounded-[28px] border border-[#b76e79]/20 p-8">
+              <p className="font-serif text-xl text-white/80 leading-relaxed mb-4">
+                <span className="text-[2.2em] text-[#b76e79]/40 font-serif leading-none align-[-0.15em] mr-1" style={{ fontFamily: 'Georgia, serif' }}>&ldquo;</span>We don't make clothes for a body type. We make clothes for <em>your</em> body, your story, your moment.<span className="text-[2.2em] text-[#b76e79]/40 font-serif leading-none align-[-0.15em] ml-1" style={{ fontFamily: 'Georgia, serif' }}>&rdquo;</span>
               </p>
               <p className="text-[11px] text-white/30 tracking-widest uppercase">— Ellaura Founders</p>
             </div>
