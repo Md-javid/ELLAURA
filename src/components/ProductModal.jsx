@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { useCart, useUI, useAuth } from '../context/AppContext'
 import { SIZE_CHART, COLOR_SWATCHES } from '../lib/products'
-import { getSavedMeasurements, saveMeasurementsDB } from '../lib/supabase'
+import { getSavedMeasurements, saveMeasurementsDB, getReviews, addReview, hasPurchasedProduct } from '../lib/supabase'
 
 // ── Sizes with chart popup + Custom Measurements ─────────────
 const REQUIRED_MEASUREMENTS = [
@@ -574,22 +574,31 @@ function StarInput({ value, onChange }) {
 function ReviewsSection({ productId, initialRating, initialCount }) {
   const { user } = useAuth()
 
-  const REVIEW_KEY = `ellaura_reviews_${productId}`
-
-  const [reviews, setReviews] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(REVIEW_KEY) || '[]') } catch { return [] }
-  })
+  const [reviews, setReviews] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [newReview, setNewReview] = useState({ rating: 0, text: '' })
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [canReview, setCanReview] = useState(false)
 
   // Reload reviews when productId changes (different product opened)
   useEffect(() => {
-    try { setReviews(JSON.parse(localStorage.getItem(`ellaura_reviews_${productId}`) || '[]')) } catch { setReviews([]) }
+    let active = true
     setSubmitted(false)
     setShowForm(false)
-  }, [productId])
+
+    // Parallel fetch: reviews + purchase status
+    Promise.all([
+      getReviews(productId),
+      hasPurchasedProduct(user?.id, productId)
+    ]).then(([fetchedReviews, purchased]) => {
+      if (!active) return
+      setReviews(fetchedReviews)
+      setCanReview(purchased)
+    })
+
+    return () => { active = false }
+  }, [productId, user?.id])
 
   const avgRating = reviews.length
     ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
@@ -597,31 +606,26 @@ function ReviewsSection({ productId, initialRating, initialCount }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!newReview.rating || !newReview.text.trim()) return
+    if (!newReview.rating || !newReview.text.trim() || !canReview) return
     setSubmitting(true)
-    await new Promise(r => setTimeout(r, 600))
 
-    const review = {
-      id: Date.now(),
-      name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Anonymous',
+    const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Anonymous'
+
+    const review = await addReview({
+      productId,
+      userId: user?.id,
+      userName,
       rating: newReview.rating,
       text: newReview.text,
-      date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-      verified: !!user,
-    }
-
-    setReviews(prev => {
-      const next = [review, ...prev]
-      // Persist immediately to localStorage so it survives reload
-      try { localStorage.setItem(REVIEW_KEY, JSON.stringify(next)) } catch {}
-      return next
+      verifiedPurchase: canReview
     })
+
+    setReviews(prev => [review, ...prev])
     setNewReview({ rating: 0, text: '' })
     setSubmitting(false)
     setSubmitted(true)
     setShowForm(false)
   }
-
 
   return (
     <div className="mt-6">
@@ -641,12 +645,14 @@ function ReviewsSection({ productId, initialRating, initialCount }) {
             )}
           </div>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="text-[11px] text-[#b76e79]/80 hover:text-[#b76e79] border border-[#b76e79]/30 rounded-xl px-3 py-1.5 glass transition-all"
-        >
-          + Write Review
-        </button>
+        {canReview && (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="text-[11px] text-[#b76e79]/80 hover:text-[#b76e79] border border-[#b76e79]/30 rounded-xl px-3 py-1.5 glass transition-all"
+          >
+            + Write Review
+          </button>
+        )}
       </div>
 
       {/* Rating distribution (only when reviews exist) */}

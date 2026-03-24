@@ -1141,3 +1141,114 @@ export const verifyRazorpayPayment = async ({ razorpay_payment_id, razorpay_orde
     return true // fail-open: don't block orders if function not deployed
   }
 }
+
+// ── Reviews ────────────────────────────────────────────────────
+
+/**
+ * Fetch all reviews for a product (from Supabase, falls back to localStorage).
+ */
+export const getReviews = async (productId) => {
+  const localKey = `ellaura_reviews_${productId}`
+  const localFallback = () => {
+    try { return JSON.parse(localStorage.getItem(localKey) || '[]') } catch { return [] }
+  }
+
+  if (isDemo()) return localFallback()
+
+  try {
+    const { data, error } = await sbFetch(() =>
+      supabase
+        .from('reviews')
+        .select('id, user_id, user_name, rating, review_text, created_at, verified_purchase')
+        .eq('product_id', productId)
+        .order('created_at', { ascending: false })
+    )
+    if (error) throw error
+    const reviews = (data || []).map(r => ({
+      id: r.id,
+      name: r.user_name,
+      rating: r.rating,
+      text: r.review_text,
+      date: new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      verified: r.verified_purchase,
+    }))
+    // Cache locally so it's available offline
+    try { localStorage.setItem(localKey, JSON.stringify(reviews)) } catch {}
+    return reviews
+  } catch {
+    return localFallback()
+  }
+}
+
+/**
+ * Submit a new review for a product.
+ */
+export const addReview = async ({ productId, userId, userName, rating, text, verifiedPurchase }) => {
+  const localKey = `ellaura_reviews_${productId}`
+  const review = {
+    id: Date.now(),
+    name: userName,
+    rating,
+    text,
+    date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+    verified: verifiedPurchase,
+  }
+
+  // Always save to localStorage as cache
+  try {
+    const existing = JSON.parse(localStorage.getItem(localKey) || '[]')
+    localStorage.setItem(localKey, JSON.stringify([review, ...existing]))
+  } catch {}
+
+  if (isDemo()) return review
+
+  try {
+    const { data, error } = await sbFetch(() =>
+      supabase.from('reviews').insert({
+        product_id: productId,
+        user_id: userId,
+        user_name: userName,
+        rating,
+        review_text: text,
+        verified_purchase: verifiedPurchase,
+      }).select().single()
+    )
+    if (error) throw error
+    return { ...review, id: data.id }
+  } catch {
+    return review // return local copy if DB fails
+  }
+}
+
+/**
+ * Check if a user has purchased a specific product (checks orders).
+ */
+export const hasPurchasedProduct = async (userId, productId) => {
+  if (!userId) return false
+
+  // Check localStorage first (works in demo/offline)
+  const localOrders = getDemoOrders().filter(o => o.user_id === userId)
+  const purchasedLocally = localOrders.some(order =>
+    Array.isArray(order.items) &&
+    order.items.some(item => (item.productId || item.product?.id) === productId)
+  )
+  if (purchasedLocally) return true
+
+  if (isDemo()) return false
+
+  try {
+    const { data, error } = await sbFetch(() =>
+      supabase
+        .from('orders')
+        .select('id, items')
+        .eq('user_id', userId)
+    )
+    if (error || !data) return false
+    return data.some(order =>
+      Array.isArray(order.items) &&
+      order.items.some(item => (item.productId || item.product?.id) === productId)
+    )
+  } catch {
+    return false
+  }
+}
