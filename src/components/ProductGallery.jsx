@@ -290,27 +290,41 @@ function ProductCard({ product, index }) {
   )
 }
 
+// ── Skeleton Card ──────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div className="glass-premium rounded-3xl border border-purple-500/10 overflow-hidden animate-pulse">
+      <div className="bg-[#b76e79]/8 h-[240px]" />
+      <div className="p-4 space-y-3">
+        <div className="h-4 bg-[#b76e79]/10 rounded-full w-3/4" />
+        <div className="h-3 bg-[#b76e79]/8 rounded-full w-1/2" />
+        <div className="flex items-center gap-2">
+          <div className="h-3 bg-[#b76e79]/8 rounded-full w-1/4" />
+          <div className="h-3 bg-[#b76e79]/6 rounded-full w-1/3" />
+        </div>
+        <div className="h-10 bg-[#b76e79]/10 rounded-xl w-full" />
+      </div>
+    </div>
+  )
+}
+
 // ── Gallery ────────────────────────────────────────────────────
 export default function ProductGallery() {
   const [vibe, setVibe] = useState('all')
   const [transitioning, setTransitioning] = useState(false)
   const [allProducts, setAllProducts] = useState([])
   const [displayed, setDisplayed] = useState([])
+  const [loading, setLoading] = useState(true)
 
   // Fetch from Supabase on mount.
-  // - null = offline/error → show localStorage products
-  // - []   = Supabase is live but empty → also merge localStorage so locally-saved products appear
-  // - [...] = Supabase has products → use as source of truth
   useEffect(() => {
+    setLoading(true)
     getProducts().then(dbProducts => {
       if (dbProducts === null) {
-        // Offline/error → use localStorage
         const products = getLiveProducts()
         setAllProducts(products)
         setDisplayed(products)
       } else if (dbProducts.length === 0) {
-        // Supabase is reachable but empty → also check localStorage
-        // (product may have been saved locally when DB sync failed)
         const local = getLiveProducts()
         const products = local.filter(p => p.active !== false)
         setAllProducts(products)
@@ -324,6 +338,8 @@ export default function ProductGallery() {
       const products = getLiveProducts()
       setAllProducts(products)
       setDisplayed(products)
+    }).finally(() => {
+      setLoading(false)
     })
   }, [])
 
@@ -362,16 +378,25 @@ export default function ProductGallery() {
         </div>
       </div>
 
+      {/* Skeleton Loading */}
+      {loading && (
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-5">
+          {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      )}
+
       {/* Grid */}
-      <div
-        key={vibe}
-        className={`grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-5 transition-opacity duration-300 ${transitioning ? 'opacity-0' : 'opacity-100'
-          }`}
-      >
-        {displayed.map((product, i) => (
-          <ProductCard key={product.id} product={product} index={i} />
-        ))}
-      </div>
+      {!loading && (
+        <div
+          key={vibe}
+          className={`grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-5 transition-opacity duration-300 ${transitioning ? 'opacity-0' : 'opacity-100'
+            }`}
+        >
+          {displayed.map((product, i) => (
+            <ProductCard key={product.id} product={product} index={i} />
+          ))}
+        </div>
+      )}
 
       {/* Coming Soon state */}
       {displayed.length === 0 && (
