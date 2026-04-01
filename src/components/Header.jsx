@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { ShoppingBag, Search, User, X, Menu, LogOut, ChevronDown, Package, Settings, MapPin, Heart, Trash2 } from 'lucide-react'
+import { ShoppingBag, Search, User, X, Menu, LogOut, ChevronDown, Package, Settings, MapPin, Heart, Trash2, Sun, Moon } from 'lucide-react'
 import { useCart, useUI, useAuth } from '../context/AppContext'
 import { signOut } from '../lib/supabase'
 
@@ -17,7 +17,7 @@ export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [activeNav, setActiveNav] = useState(null)
   const { cartCount, setCartOpen, addToCart } = useCart()
-  const { setSearchOpen, wishlist, toggleWishlist, setProductModal, wishlistOpen, setWishlistOpen } = useUI()
+  const { setSearchOpen, wishlist, toggleWishlist, setProductModal, wishlistOpen, setWishlistOpen, theme, toggleTheme } = useUI()
   const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -59,13 +59,15 @@ export default function Header() {
     navigate('/')
   }
 
+  const isDark = theme === 'dark'
+
   return (
     <>
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
           scrolled
-            ? 'backdrop-blur-2xl bg-black/65 border-b border-purple-500/15 shadow-[0_4px_30px_rgba(139,92,246,0.1)]'
-            : 'backdrop-blur-xl bg-black/30 border-b border-white/5'
+            ? 'backdrop-blur-2xl bg-white/90 border-b border-[#b76e79]/20 shadow-[0_8px_30px_rgba(183,110,121,0.14)]'
+            : 'backdrop-blur-xl bg-white/70 border-b border-[#b76e79]/12'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 grid grid-cols-[40px_1fr_auto] lg:flex lg:justify-between items-center gap-2 lg:gap-4">
@@ -76,33 +78,38 @@ export default function Header() {
             aria-label="Toggle menu"
           >
             <span className="relative w-5 h-4 flex flex-col justify-between">
-              <span className={`block h-[1.5px] bg-white/80 rounded-full transition-all duration-300 origin-center ${menuOpen ? 'rotate-45 translate-y-[7.5px]' : ''}`} />
-              <span className={`block h-[1.5px] bg-white/80 rounded-full transition-all duration-300 ${menuOpen ? 'opacity-0 scale-x-0' : ''}`} />
-              <span className={`block h-[1.5px] bg-white/80 rounded-full transition-all duration-300 origin-center ${menuOpen ? '-rotate-45 -translate-y-[7.5px]' : ''}`} />
+              <span className={`block h-[1.5px] bg-[#4d3439]/80 rounded-full transition-all duration-300 origin-center ${menuOpen ? 'rotate-45 translate-y-[7.5px]' : ''}`} />
+              <span className={`block h-[1.5px] bg-[#4d3439]/80 rounded-full transition-all duration-300 ${menuOpen ? 'opacity-0 scale-x-0' : ''}`} />
+              <span className={`block h-[1.5px] bg-[#4d3439]/80 rounded-full transition-all duration-300 origin-center ${menuOpen ? '-rotate-45 -translate-y-[7.5px]' : ''}`} />
             </span>
           </button>
 
           {/* ── Brand ── */}
           <Link to="/" className="flex flex-col items-center justify-self-center lg:justify-self-auto flex-shrink-0 mt-2 lg:mt-0">
-            <span className="font-serif text-xl sm:text-2xl font-bold tracking-widest text-rose-gold leading-none">
+            <span className="font-serif text-xl sm:text-2xl font-bold tracking-widest text-[#a15c68] brand-title-glow leading-none">
               ELLAURA
             </span>
-            <span className="text-[7px] tracking-[0.4em] text-white/25 font-light uppercase mt-0.5">
+            <span className="text-[7px] tracking-[0.4em] text-[#8b6269] font-light uppercase mt-0.5">
               Couture
             </span>
           </Link>
 
           {/* ── Desktop nav links ── */}
-          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center">
+          <nav className="hidden lg:flex items-center gap-1.5 flex-1 justify-center">
             {NAV_LINKS.map(link => (
               <button
                 key={link.label}
                 onClick={() => { setActiveNav(link.label); handleNavClick(link.href) }}
-                className={`relative px-4 py-2 rounded-xl text-[13px] font-medium tracking-wide transition-all duration-300 ${
+                className={`relative px-5 py-2 rounded-xl text-[13px] font-medium tracking-wide transition-all duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
                   activeNav === link.label
-                    ? 'text-white bg-purple-500/15 border border-purple-500/25 shadow-[0_0_15px_rgba(139,92,246,0.15)]'
-                    : 'text-white/60 hover:text-white hover:bg-white/8'
+                    ? 'text-[#7d3a45] border border-[#b76e79]/50 shadow-[0_0_18px_rgba(183,110,121,0.15),inset_0_1px_0_rgba(255,255,255,0.6)]'
+                    : 'text-[#4d3439]/55 border border-transparent hover:text-[#2d1b1e] hover:border-[#b76e79]/25 hover:shadow-[0_0_12px_rgba(183,110,121,0.08)]'
                 }`}
+                style={activeNav === link.label ? {
+                  background: 'rgba(255,240,245,0.45)',
+                  backdropFilter: 'blur(16px) saturate(140%)',
+                  WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+                } : {}}
               >
                 {link.label}
               </button>
@@ -111,13 +118,49 @@ export default function Header() {
 
           {/* ── Right actions ── */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Search */}
+            {/* ── Theme Toggle — Sun/Moon with smooth morph ──
+                HIDDEN for production (light-mode only). To re-enable, remove 'hidden' class below.
+            */}
+            <button
+              onClick={toggleTheme}
+              className="hidden theme-toggle-btn w-10 h-10 rounded-2xl glass flex items-center justify-center transition-all duration-500 hover:shadow-[0_0_20px_rgba(183,110,121,0.30)] active:scale-90 relative overflow-hidden group"
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDark ? 'Light mode' : 'Dark mode'}
+            >
+              {/* Sun icon */}
+              <Sun
+                className="w-4 h-4 absolute transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                style={{
+                  opacity: isDark ? 0 : 1,
+                  transform: isDark ? 'rotate(-90deg) scale(0.5)' : 'rotate(0deg) scale(1)',
+                  color: '#e8a0a8',
+                }}
+              />
+              {/* Moon icon */}
+              <Moon
+                className="w-4 h-4 absolute transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                style={{
+                  opacity: isDark ? 1 : 0,
+                  transform: isDark ? 'rotate(0deg) scale(1)' : 'rotate(90deg) scale(0.5)',
+                  color: '#e8a0a8',
+                }}
+              />
+              {/* Hover glow ring */}
+              <span
+                className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                style={{
+                  background: isDark
+                    ? 'radial-gradient(circle, rgba(232,160,168,0.15) 0%, transparent 70%)'
+                    : 'radial-gradient(circle, rgba(183,110,121,0.12) 0%, transparent 70%)',
+                }}
+              />
+            </button>
             <button
               onClick={() => setSearchOpen(true)}
               className="w-10 h-10 rounded-2xl glass flex items-center justify-center transition-all duration-300 hover:bg-white/10 active:scale-95"
               aria-label="Search"
             >
-              <Search className="w-4 h-4 text-white/70" />
+              <Search className="w-4 h-4 text-[#4d3439]/70" />
             </button>
 
             {/* Auth */}
@@ -128,38 +171,38 @@ export default function Header() {
                   className="w-10 h-10 rounded-2xl glass flex items-center justify-center transition-all duration-300 hover:bg-white/10 active:scale-95"
                   aria-label="Account"
                 >
-                  <User className="w-4 h-4 text-white/70" />
+                  <User className="w-4 h-4 text-[#4d3439]/70" />
                 </button>
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-12 w-56 rounded-2xl border border-white/10 shadow-2xl py-2 animate-slideDown" style={{background:'rgba(8,6,14,0.95)', backdropFilter:'blur(28px)', WebkitBackdropFilter:'blur(28px)'}}>
-                    <div className="px-4 py-2 border-b border-white/8 mb-1">
-                      <p className="text-[11px] text-white/40 truncate">{user.email}</p>
+                  <div className="absolute right-0 top-12 w-56 rounded-2xl border border-[#b76e79]/15 shadow-2xl py-2 animate-slideDown" style={{background:'rgba(255,250,252,0.96)', backdropFilter:'blur(28px)', WebkitBackdropFilter:'blur(28px)'}}>
+                    <div className="px-4 py-2 border-b border-[#b76e79]/10 mb-1">
+                      <p className="text-[11px] text-[#2d1b1e]/45 truncate">{user.email}</p>
                     </div>
                     <button
                       onClick={() => { setUserMenuOpen(false); navigate('/orders') }}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200"
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-[#2d1b1e]/60 hover:text-[#2d1b1e] hover:bg-[#b76e79]/6 transition-all duration-200"
                     >
                       <Package className="w-3.5 h-3.5" />
                       My Orders
                     </button>
                     <button
                       onClick={() => { setUserMenuOpen(false); navigate('/orders?tab=account') }}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200"
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-[#2d1b1e]/60 hover:text-[#2d1b1e] hover:bg-[#b76e79]/6 transition-all duration-200"
                     >
                       <Settings className="w-3.5 h-3.5" />
                       Account
                     </button>
                     <button
                       onClick={() => { setUserMenuOpen(false); navigate('/orders?tab=addresses') }}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-white/60 hover:text-white hover:bg-white/5 transition-all duration-200"
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-[#2d1b1e]/60 hover:text-[#2d1b1e] hover:bg-[#b76e79]/6 transition-all duration-200"
                     >
                       <MapPin className="w-3.5 h-3.5" />
                       Manage Addresses
                     </button>
-                    <div className="border-t border-white/5 mt-1 pt-1">
+                    <div className="border-t border-[#b76e79]/8 mt-1 pt-1">
                       <button
                         onClick={handleSignOut}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-red-400/60 hover:text-red-400 hover:bg-red-400/5 transition-all duration-200"
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-[13px] text-red-500/60 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
                       >
                         <LogOut className="w-3.5 h-3.5" />
                         Sign Out
@@ -171,7 +214,7 @@ export default function Header() {
             ) : (
               <Link
                 to="/login"
-                className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl glass border border-white/10 text-[12px] font-medium text-white/70 hover:text-white hover:bg-white/10 transition-all duration-300"
+                className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-xl glass border border-[#b76e79]/18 text-[12px] font-medium text-[#4d3439]/70 hover:text-[#2d1b1e] hover:bg-[#b76e79]/8 transition-all duration-300"
               >
                 <User className="w-3.5 h-3.5" />
                 Login
@@ -184,7 +227,7 @@ export default function Header() {
               className="w-10 h-10 rounded-2xl glass flex items-center justify-center transition-all duration-300 hover:bg-white/10 active:scale-95 relative"
               aria-label="Wishlist"
             >
-              <Heart className={`w-4 h-4 transition-all ${wishlist.length > 0 ? 'fill-[#e8a0a8] text-[#e8a0a8]' : 'text-white/70'}`} />
+              <Heart className={`w-4 h-4 transition-all ${wishlist.length > 0 ? 'fill-[#e8a0a8] text-[#e8a0a8]' : 'text-[#4d3439]/70'}`} />
               {wishlist.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-br from-[#e8a0a8] to-[#b76e79] text-[9px] font-bold text-white flex items-center justify-center">
                   {wishlist.length}
@@ -198,7 +241,7 @@ export default function Header() {
               className="w-10 h-10 rounded-2xl glass flex items-center justify-center transition-all duration-300 hover:bg-white/10 active:scale-95 relative"
               aria-label="Shopping bag"
             >
-              <ShoppingBag className="w-4 h-4 text-white/70" />
+              <ShoppingBag className="w-4 h-4 text-[#4d3439]/70" />
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-br from-[#e8a0a8] to-[#b76e79] text-[9px] font-bold text-white flex items-center justify-center animate-pulse-rose">
                   {cartCount}
@@ -339,6 +382,11 @@ export default function Header() {
                 </button>
                 <button
                   onClick={() => {
+                    if (!user) {
+                      navigate('/login?redirect=checkout')
+                      setWishlistOpen(false)
+                      return
+                    }
                     wishlist.forEach(p => addToCart(p, p.sizes?.[1] || 'M'))
                     setWishlistOpen(false)
                     navigate('/checkout')

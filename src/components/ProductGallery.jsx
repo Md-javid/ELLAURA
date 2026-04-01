@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Heart, Star, Zap, Moon, ShoppingBag, Eye, X, Shirt, ExternalLink, Scissors, Gem, Truck } from 'lucide-react'
+import { Heart, Star, Zap, Moon, ShoppingBag, Eye, X, Shirt, ExternalLink, Scissors, Gem, Truck, Sparkles } from 'lucide-react'
 import { useCart, useUI } from '../context/AppContext'
 import { getLiveProducts, COLOR_SWATCHES } from '../lib/products'
 import { getProducts } from '../lib/supabase'
@@ -14,7 +14,7 @@ const VIBES = [
 const PILL_COLORS = {
   western: { from: '#b76e79', to: '#8b4f5a', shadow: '0 4px 16px rgba(183,110,121,0.40)' },
   club:    { from: '#6366f1', to: '#4f46e5', shadow: '0 4px 16px rgba(99,102,241,0.40)'  },
-  all:     { from: 'rgba(255,255,255,0.18)', to: 'rgba(255,255,255,0.06)', shadow: '0 2px 8px rgba(255,255,255,0.08)' },
+  all:     { from: '#b76e79', to: '#e8a0a8', shadow: '0 4px 16px rgba(183,110,121,0.25)' },
 }
 
 function VibeToggle({ vibe, onToggle }) {
@@ -35,7 +35,7 @@ function VibeToggle({ vibe, onToggle }) {
   }, [vibe])
 
   return (
-    <div className="relative glass rounded-2xl p-1.5 flex items-center w-fit overflow-hidden">
+    <div className="relative rounded-2xl p-1.5 flex items-center w-fit overflow-hidden bg-[#f5e6ea]/40 border border-[#b76e79]/10">
       {/* Sliding pill — positioned by measuring actual button widths */}
       <div
         className="absolute top-1.5 bottom-1.5 rounded-xl pointer-events-none"
@@ -47,7 +47,7 @@ function VibeToggle({ vibe, onToggle }) {
           ref={el => { btnRefs.current[i] = el }}
           onClick={() => onToggle(key)}
           className={`relative z-10 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[12px] font-medium tracking-wide transition-colors duration-250 whitespace-nowrap ${
-            vibe === key ? 'text-white' : 'text-white/50 hover:text-white/75'
+            vibe === key ? 'text-white' : 'text-[#2d1b1e]/55 hover:text-[#2d1b1e]/80'
           }`}
         >
           {Icon && <Icon className="w-3.5 h-3.5" />}
@@ -145,9 +145,9 @@ function SizePickerModal({ product, onSelect, onClose }) {
 
 // ── Product Card ───────────────────────────────────────────────
 function ProductCard({ product, index }) {
-  const [liked, setLiked] = useState(false)
   const [visible, setVisible] = useState(false)
-  const { setProductModal } = useUI()
+  const { setProductModal, toggleWishlist, isWishlisted } = useUI()
+  const liked = isWishlisted(product.id)
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), index * 90)
@@ -161,8 +161,8 @@ function ProductCard({ product, index }) {
   return (
     <>
       <div
-        className={`group glass-premium rounded-3xl border border-purple-500/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.35)] overflow-hidden transition-all duration-500 cursor-pointer ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-          } hover:-translate-y-2 hover:shadow-[0_20px_60px_rgba(139,92,246,0.15)] hover:border-purple-500/25`}
+        className={`group glass-premium rounded-3xl border border-[#b76e79]/12 shadow-[0_8px_32px_0_rgba(0,0,0,0.08)] overflow-hidden transition-all duration-500 cursor-pointer ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+          } hover:-translate-y-2 hover:shadow-[0_20px_60px_rgba(183,110,121,0.12)] hover:border-[#b76e79]/25`}
         onClick={handleCardClick}
         role="button"
       >
@@ -195,9 +195,9 @@ function ProductCard({ product, index }) {
             </div>
           )}
 
-          {/* Wishlist */}
+          {/* Wishlist — now uses real toggleWishlist */}
           <button
-            onClick={(e) => { e.stopPropagation(); setLiked(!liked) }}
+            onClick={(e) => { e.stopPropagation(); toggleWishlist(product) }}
             className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full glass flex items-center justify-center transition-all duration-300 active:scale-90"
           >
             <Heart className={`w-3.5 h-3.5 transition-all duration-300 ${liked ? 'fill-[#e8a0a8] text-[#e8a0a8] scale-110' : 'text-white/60'}`} />
@@ -211,10 +211,10 @@ function ProductCard({ product, index }) {
           {/* Name & Rating */}
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="flex-1 min-w-0">
-              <h3 className="font-serif text-sm font-semibold text-white/90 truncate leading-tight">{product.name}</h3>
+              <h3 className="font-serif text-sm font-semibold text-[#2d1b1e]/90 truncate leading-tight">{product.name}</h3>
               <div className="flex items-center gap-1 mt-0.5">
                 <Star className="w-3 h-3 fill-[#e8a0a8] text-[#e8a0a8]" />
-                <span className="text-[10px] text-white/40">{product.rating} ({product.reviews})</span>
+                <span className="text-[10px] text-[#2d1b1e]/40">{product.rating} ({product.reviews})</span>
               </div>
             </div>
             <p className="text-[#e8a0a8] font-semibold text-sm whitespace-nowrap">{product.priceDisplay}</p>
@@ -223,7 +223,7 @@ function ProductCard({ product, index }) {
           {/* Category & Vibe */}
           <div className="flex flex-wrap items-center gap-1.5 mb-2">
             {product.category && (
-              <span className="text-[9px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full glass border border-white/10 text-white/40">
+              <span className="text-[9px] font-medium tracking-wider uppercase px-2 py-0.5 rounded-full bg-white/60 border border-[#b76e79]/12 text-[#2d1b1e]/40">
                 {product.category}
               </span>
             )}
@@ -235,13 +235,13 @@ function ProductCard({ product, index }) {
           </div>
 
           {/* Description (hidden on xs, shown on md+) */}
-          <p className="hidden md:block text-[11px] text-white/35 leading-snug mb-2 line-clamp-2">{product.description}</p>
+          <p className="hidden md:block text-[11px] text-[#2d1b1e]/40 leading-snug mb-2 line-clamp-2">{product.description}</p>
 
           {/* Material tag */}
           {product.material && (
             <div className="flex items-center gap-1.5 mb-3">
               <Shirt className="w-3 h-3 text-[#b76e79]/50" />
-              <span className="text-[10px] text-white/30 truncate">{product.material?.split('•')[0]?.trim()}</span>
+              <span className="text-[10px] text-[#2d1b1e]/35 truncate">{product.material?.split('•')[0]?.trim()}</span>
             </div>
           )}
 
@@ -268,11 +268,11 @@ function ProductCard({ product, index }) {
                 <div
                   key={c}
                   title={c}
-                  className="w-5 h-5 rounded-full border-2 border-white/15 transition-transform hover:scale-125 cursor-pointer"
+                  className="w-5 h-5 rounded-full border-2 border-[#b76e79]/18 transition-transform hover:scale-125 cursor-pointer"
                   style={{ backgroundColor: COLOR_SWATCHES[c] || '#666' }}
                 />
               ))}
-              <span className="text-[9px] text-white/25 ml-1">{product.colors.length} {product.colors.length === 1 ? 'color' : 'colors'}</span>
+              <span className="text-[9px] text-[#2d1b1e]/28 ml-1">{product.colors.length} {product.colors.length === 1 ? 'color' : 'colors'}</span>
             </div>
           )}
 
@@ -293,7 +293,7 @@ function ProductCard({ product, index }) {
 // ── Skeleton Card ──────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="glass-premium rounded-3xl border border-purple-500/10 overflow-hidden animate-pulse">
+    <div className="glass-premium rounded-3xl border border-[#b76e79]/10 overflow-hidden animate-pulse">
       <div className="bg-[#b76e79]/8 h-[240px]" />
       <div className="p-4 space-y-3">
         <div className="h-4 bg-[#b76e79]/10 rounded-full w-3/4" />
@@ -303,6 +303,60 @@ function SkeletonCard() {
           <div className="h-3 bg-[#b76e79]/6 rounded-full w-1/3" />
         </div>
         <div className="h-10 bg-[#b76e79]/10 rounded-xl w-full" />
+      </div>
+    </div>
+  )
+}
+
+// ── Mobile New Arrivals Strip ──────────────────────────────────
+function MobileNewArrivalsStrip({ products }) {
+  const { setProductModal } = useUI()
+  const newOnes = products.filter(p => p.badge === 'New' || p.isNew || p.tag === 'NEW')
+  if (newOnes.length === 0) return null
+
+  return (
+    <div className="lg:hidden mb-8">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-[#b76e79]" />
+          <span className="text-[11px] tracking-[0.25em] text-[#b76e79] uppercase font-bold">New Arrivals</span>
+        </span>
+        <div className="flex-1 h-[1px] bg-gradient-to-r from-[#b76e79]/30 to-transparent ml-1" />
+        <span className="text-[9px] glass px-2 py-0.5 rounded-full border border-[#b76e79]/22 text-[#b76e79]/70 font-medium">
+          {newOnes.length} pieces
+        </span>
+      </div>
+
+      {/* Horizontal scroll strip */}
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
+        {newOnes.map((p, i) => (
+          <div
+            key={p.id}
+            className="flex-shrink-0 cursor-pointer active:scale-95 transition-all duration-200 group"
+            style={{ width: '140px' }}
+            onClick={() => setProductModal(p)}
+          >
+            {/* Image */}
+            <div className="relative rounded-2xl overflow-hidden" style={{ height: '175px' }}>
+              <img
+                src={p.img}
+                alt={p.imgAlt || p.name}
+                className="w-full h-full object-cover object-top group-active:scale-105 transition-transform duration-300"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+              {/* NEW badge */}
+              <span className="absolute top-2 left-2 text-[8px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-[#b76e79] to-[#e8a0a8] text-white shadow-lg tracking-wider">
+                NEW
+              </span>
+              {/* Price overlay */}
+              <div className="absolute bottom-2 left-2 right-2">
+                <p className="text-white font-semibold text-[11px] truncate leading-tight">{p.name}</p>
+                <p className="text-[#e8a0a8] font-bold text-[11px] mt-0.5">{p.priceDisplay}</p>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -364,19 +418,19 @@ export default function ProductGallery() {
       <div className="mb-10 lg:flex lg:items-end lg:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-[1px] bg-gradient-to-r from-purple-500 to-transparent" />
-            <span className="text-[10px] tracking-[0.35em] text-purple-400/70 uppercase">The Launch Collection</span>
+            <div className="w-8 h-[1px] bg-gradient-to-r from-[#b76e79] to-transparent" />
+            <span className="text-[10px] tracking-[0.35em] text-[#b76e79]/70 uppercase">The Launch Collection</span>
           </div>
-          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-white/90 leading-tight mb-2">
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#2d1b1e] leading-tight mb-2">
             Dress For The
             <span className="text-rose-gold"> Moment.</span>
           </h2>
-          <p className="text-[13px] text-white/40 font-light">Handcrafted for you. Made to order. Coming soon.</p>
-        </div>
-        <div className="mt-6 lg:mt-0 overflow-x-auto pb-1">
-          <VibeToggle vibe={vibe} onToggle={handleVibeToggle} />
+          <p className="text-[13px] text-[#2d1b1e]/45 font-light">Handcrafted for you. Made to order. Coming soon.</p>
         </div>
       </div>
+
+      {/* Mobile-only: New Arrivals strip */}
+      {!loading && <MobileNewArrivalsStrip products={allProducts} />}
 
       {/* Skeleton Loading */}
       {loading && (

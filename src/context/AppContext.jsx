@@ -89,6 +89,24 @@ export function AppProvider({ children }) {
   const [productModal, setProductModal] = useState(null) // product object or null
   const [wishlistOpen, setWishlistOpen] = useState(false)
 
+  // ── Theme (light / dark) ────────────────────────────────────
+  // NOTE: Dark mode code is preserved. To re-enable, change 'light' to:
+  //   localStorage.getItem('ellaura_theme') || 'light'
+  // and unhide the toggle button in Header.jsx
+  const [theme, setTheme] = useState('light')
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
+    try { localStorage.setItem('ellaura_theme', theme) } catch {}
+  }, [theme])
+
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
+
   // ── Wishlist — per-user ────────────────────────────────────
   const wlKey = (uid) => `ellaura_wishlist_${uid || 'guest'}`
 
@@ -359,6 +377,7 @@ export function AppProvider({ children }) {
           productModal, setProductModal,
           wishlist, toggleWishlist, isWishlisted,
           wishlistOpen, setWishlistOpen,
+          theme, toggleTheme,
         }}>
           {children}
         </UIContext.Provider>

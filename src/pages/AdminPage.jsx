@@ -5,9 +5,10 @@ import {
   Save, X, Package, Eye, EyeOff, UploadCloud,
   CheckCircle, AlertTriangle, ToggleLeft, ToggleRight,
   RefreshCw, IndianRupee, Tag, Mail, KeyRound, Shirt,
-  ClipboardList, Truck, Clock, ChevronDown, MapPin, User as UserIcon, Heart,
+  ClipboardList, Truck, Clock, ChevronDown, MapPin, User as UserIcon, Heart, BookOpen,
 } from 'lucide-react'
 import { DEMO_MODE, adminSignIn, uploadProductImage, uploadProductImages, getProducts, upsertProduct, deleteProduct, getAllOrders, updateOrderStatus, getWishlistSummaryDB } from '../lib/supabase'
+import { loadLookbookConfig, saveLookbookConfig, LOOKBOOK_DEFAULTS } from '../lib/lookbookConfig'
 
 // ── Admin config ──────────────────────────────────────────────
 const ADMIN_SESSION_KEY = 'ellaura_admin_session'
@@ -1223,6 +1224,160 @@ function AdminWishlistTab() {
   )
 }
 
+// ── Admin Lookbook Tab ────────────────────────────────────────
+function AdminLookbookTab() {
+  const [config, setConfig] = useState(loadLookbookConfig)
+  const [saved, setSaved] = useState(false)
+
+  const set = (key) => (e) => setConfig(c => ({ ...c, [key]: e.target.value }))
+  const setLook = (idx, key) => (e) => {
+    setConfig(c => {
+      const looks = [...(c.looks || [])]
+      looks[idx] = { ...looks[idx], [key]: e.target.value }
+      return { ...c, looks }
+    })
+  }
+
+  const handleSave = () => {
+    saveLookbookConfig(config)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleReset = () => {
+    setConfig({ ...LOOKBOOK_DEFAULTS })
+    saveLookbookConfig({ ...LOOKBOOK_DEFAULTS })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const addLook = () => {
+    setConfig(c => ({
+      ...c,
+      looks: [...(c.looks || []), { title: '', subtitle: '', description: '', mood: '' }]
+    }))
+  }
+
+  const removeLook = (idx) => {
+    setConfig(c => ({ ...c, looks: (c.looks || []).filter((_, i) => i !== idx) }))
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-serif text-lg font-bold text-white/85">Lookbook Page Content</h2>
+        <div className="flex gap-2">
+          <button onClick={handleReset} className="glass rounded-xl border border-white/10 px-3 py-1.5 text-[11px] text-white/40 hover:text-white/70 transition-all">Reset Defaults</button>
+          <button onClick={handleSave} className={`btn-liquid rounded-xl px-5 py-1.5 text-[12px] font-semibold text-white flex items-center gap-1.5 ${saved ? 'opacity-60' : ''}`}>
+            {saved ? <><CheckCircle className="w-3.5 h-3.5" /> Saved!</> : <><Save className="w-3.5 h-3.5" /> Save Changes</>}
+          </button>
+        </div>
+      </div>
+
+      {/* Page Header */}
+      <div className="glass-dark rounded-[20px] border border-white/8 p-5 space-y-4">
+        <p className="text-[10px] tracking-[0.2em] text-white/25 uppercase">Page Header</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Page Title</label>
+            <div className={wrapCls}><input type="text" value={config.pageTitle} onChange={set('pageTitle')} className={inputCls} /></div>
+          </div>
+          <div>
+            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Subtitle</label>
+            <div className={wrapCls}><input type="text" value={config.pageSubtitle} onChange={set('pageSubtitle')} className={inputCls} /></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero Section */}
+      <div className="glass-dark rounded-[20px] border border-white/8 p-5 space-y-4">
+        <p className="text-[10px] tracking-[0.2em] text-white/25 uppercase">Intro Section</p>
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Headline</label>
+            <div className={wrapCls}><input type="text" value={config.heroTitle} onChange={set('heroTitle')} className={inputCls} /></div>
+          </div>
+          <div>
+            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Sub-heading</label>
+            <div className={wrapCls}><input type="text" value={config.heroSubtitle} onChange={set('heroSubtitle')} className={inputCls} /></div>
+          </div>
+          <div>
+            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Description</label>
+            <div className={wrapCls + ' items-start'}><textarea rows={2} value={config.heroDescription} onChange={set('heroDescription')} className={inputCls + ' resize-y'} /></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Look Cards */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] tracking-[0.2em] text-white/25 uppercase">Editorial Looks ({config.looks?.length || 0})</p>
+          <button onClick={addLook} className="glass rounded-xl border border-white/10 px-3 py-1.5 text-[11px] text-white/40 hover:text-white/70 flex items-center gap-1 transition-all">
+            <Plus className="w-3 h-3" /> Add Look
+          </button>
+        </div>
+        {(config.looks || []).map((look, i) => (
+          <div key={i} className="glass-dark rounded-[20px] border border-white/8 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[12px] font-semibold text-white/60">Look {i + 1}</p>
+              <button onClick={() => removeLook(i)} className="text-white/20 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Title</label>
+                <div className={wrapCls}><input type="text" value={look.title} onChange={setLook(i, 'title')} className={inputCls} /></div>
+              </div>
+              <div>
+                <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Subtitle</label>
+                <div className={wrapCls}><input type="text" value={look.subtitle} onChange={setLook(i, 'subtitle')} className={inputCls} /></div>
+              </div>
+              <div>
+                <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Mood Tag</label>
+                <div className={wrapCls}><input type="text" value={look.mood} onChange={setLook(i, 'mood')} className={inputCls} /></div>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Description</label>
+              <div className={wrapCls + ' items-start'}><textarea rows={2} value={look.description} onChange={setLook(i, 'description')} className={inputCls + ' resize-y'} /></div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* CTA Section */}
+      <div className="glass-dark rounded-[20px] border border-white/8 p-5 space-y-4">
+        <p className="text-[10px] tracking-[0.2em] text-white/25 uppercase">CTA Section</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">CTA Title</label>
+            <div className={wrapCls}><input type="text" value={config.ctaTitle} onChange={set('ctaTitle')} className={inputCls} /></div>
+          </div>
+          <div>
+            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">CTA Subtitle</label>
+            <div className={wrapCls}><input type="text" value={config.ctaSubtitle} onChange={set('ctaSubtitle')} className={inputCls} /></div>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">CTA Description</label>
+            <div className={wrapCls + ' items-start'}><textarea rows={2} value={config.ctaDescription} onChange={set('ctaDescription')} className={inputCls + ' resize-y'} /></div>
+          </div>
+          <div>
+            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">Button Label</label>
+            <div className={wrapCls}><input type="text" value={config.ctaButtonLabel} onChange={set('ctaButtonLabel')} className={inputCls} /></div>
+          </div>
+          <div>
+            <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-1.5">WhatsApp Number</label>
+            <div className={wrapCls}><input type="text" value={config.ctaWhatsAppNumber} onChange={set('ctaWhatsAppNumber')} className={inputCls} /></div>
+          </div>
+        </div>
+      </div>
+
+      <button onClick={handleSave} className={`w-full btn-liquid rounded-xl py-3 text-[14px] font-semibold text-white flex items-center justify-center gap-2 ${saved ? 'opacity-60' : ''}`}>
+        {saved ? <><CheckCircle className="w-4 h-4" /> Saved!</> : <><Save className="w-4 h-4" /> Save All Lookbook Changes</>}
+      </button>
+    </div>
+  )
+}
+
 // ── Main Admin Page ───────────────────────────────────────────
 export default function AdminPage() {
   const navigate = useNavigate()
@@ -1239,7 +1394,7 @@ export default function AdminPage() {
     } catch { }
     return ''
   })
-  const [adminTab, setAdminTab] = useState('products') // 'products' | 'orders' | 'wishlist'
+  const [adminTab, setAdminTab] = useState('products') // 'products' | 'orders' | 'wishlist' | 'lookbook'
   const [products, setProducts] = useState([])
   const [mode, setMode] = useState('list') // 'list' | 'add' | 'edit'
   const [editTarget, setEditTarget] = useState(null)
@@ -1448,10 +1603,17 @@ export default function AdminPage() {
           >
             <Heart className="w-4 h-4" /> Wishlist
           </button>
+          <button
+            onClick={() => setAdminTab('lookbook')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-all ${adminTab === 'lookbook' ? 'bg-gradient-to-r from-[#b76e79]/60 to-[#8b4f5a]/60 text-white shadow' : 'text-white/40 hover:text-white/70'}`}
+          >
+            <BookOpen className="w-4 h-4" /> Lookbook
+          </button>
         </div>
 
         {adminTab === 'orders' && <AdminOrdersTab />}
         {adminTab === 'wishlist' && <AdminWishlistTab />}
+        {adminTab === 'lookbook' && <AdminLookbookTab />}
 
         {adminTab === 'products' && <>
         {/* Stats bar */}

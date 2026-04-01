@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   X, ChevronLeft, ChevronRight, Star, ShoppingBag, Heart,
   Clock, Package, Truck, RotateCcw, Info, ChevronDown, ChevronUp,
   Send, User as UserIcon, RotateCw, Shirt, Palette, Ruler, ExternalLink,
-  Plus, Trash2, ShieldCheck,
+  Plus, Trash2, ShieldCheck, Zap,
 } from 'lucide-react'
 import { useCart, useUI, useAuth } from '../context/AppContext'
 import { SIZE_CHART, COLOR_SWATCHES } from '../lib/products'
@@ -766,6 +767,7 @@ export default function ProductModal() {
   const { addToCart } = useCart()
   const { toggleWishlist, isWishlisted } = useUI()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [selectedSize, setSelectedSize] = useState('M')
   const [selectedColor, setSelectedColor] = useState(null)
   const [selectedMeasurements, setSelectedMeasurements] = useState(null)
@@ -830,6 +832,39 @@ export default function ProductModal() {
     }
     setAdded(true)
     setTimeout(() => setAdded(false), 2500)
+  }
+
+  // Check if all required options are selected/valid
+  const isReadyToBuy = () => {
+    if (!selectedSize) return false
+    if (selectedSize === 'Custom') {
+      const { bust, waist, hips } = selectedMeasurements || {}
+      return !!(bust?.trim() && waist?.trim() && hips?.trim())
+    }
+    return true
+  }
+
+  const handleBuyNow = () => {
+    // Must be logged in to buy
+    if (!user) {
+      setProductModal(null)
+      navigate('/login?redirect=checkout')
+      return
+    }
+    if (selectedSize === 'Custom') {
+      const { bust, waist, hips } = selectedMeasurements || {}
+      if (!bust?.trim() || !waist?.trim() || !hips?.trim()) {
+        setMeasureError(true)
+        return
+      }
+    }
+    setMeasureError(false)
+    addToCart(product, selectedSize, selectedMeasurements)
+    if (selectedSize === 'Custom' && saveMeasurementsChecked && selectedMeasurements) {
+      saveMeasurementsDB(user?.id, selectedMeasurements)
+    }
+    setProductModal(null)
+    navigate('/checkout')
   }
 
   const images = product.images?.length ? product.images : [product.img]
@@ -966,28 +1001,61 @@ export default function ProductModal() {
               onSaveChecked={setSaveMeasurementsChecked}
             />
 
-            {/* CTA */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleAddToCart}
-                disabled={product.stock === 0}
-                className={`flex-1 py-3.5 rounded-2xl text-[14px] font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${added
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'btn-liquid text-white'
+            {/* CTA — Add to Bag + Buy Now */}
+            <div className="space-y-2.5">
+              {/* Row 1: Add to Bag + Wishlist */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAddToCart}
+                  disabled={product.stock === 0}
+                  className={`flex-1 py-3.5 rounded-2xl text-[14px] font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
+                    added
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'btn-liquid text-white'
                   }`}
-              >
-                {added ? (
-                  <><span>✓</span> Added to Bag</>
-                ) : (
-                  <><ShoppingBag className="w-4 h-4" /> Add to Bag — {selectedSize}</>
+                >
+                  {added ? (
+                    <><span>✓</span> Added to Bag</>
+                  ) : (
+                    <><ShoppingBag className="w-4 h-4" /> Add to Bag — {selectedSize}</>
+                  )}
+                </button>
+                <button
+                  onClick={() => toggleWishlist(product)}
+                  className="w-12 h-12 rounded-2xl glass border border-white/10 flex items-center justify-center transition-all active:scale-90"
+                >
+                  <Heart className={`w-5 h-5 transition-all ${isWishlisted(product.id) ? 'fill-[#e8a0a8] text-[#e8a0a8] scale-110' : 'text-white/40'}`} />
+                </button>
+              </div>
+
+              {/* Row 2: Buy Now — full width, only active when ready */}
+              <div className="relative group">
+                <button
+                  onClick={handleBuyNow}
+                  disabled={product.stock === 0 || !isReadyToBuy()}
+                  className={`buy-now-btn w-full py-3.5 rounded-2xl text-[14px] font-bold flex items-center justify-center gap-2.5 transition-all duration-300 active:scale-[0.98] ${
+                    isReadyToBuy() && product.stock !== 0
+                      ? 'bg-gradient-to-r from-[#8b4f5a] via-[#b76e79] to-[#e8a0a8] text-white border border-[#e8a0a8]/30 hover:opacity-90 hover:shadow-[0_4px_24px_rgba(183,110,121,0.45)] shadow-md'
+                      : 'bg-white/5 text-white/25 border border-white/10 cursor-not-allowed'
+                  }`}
+                >
+                  <Zap className={`w-4 h-4 transition-colors ${
+                    isReadyToBuy() ? 'text-[#e8a0a8]' : 'text-white/20'
+                  }`} />
+                  <span>Buy Now</span>
+                  {isReadyToBuy() && (
+                    <span className="text-[11px] font-normal text-white/50 ml-1">→ Go to checkout</span>
+                  )}
+                </button>
+                {/* Tooltip when not ready */}
+                {!isReadyToBuy() && (
+                  <div className="absolute -top-9 left-1/2 -translate-x-1/2 px-3 py-1.5 glass-dark rounded-xl border border-white/10 text-[10px] text-white/50 whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                    {selectedSize === 'Custom'
+                      ? 'Enter your measurements to buy now'
+                      : 'Select a size to buy now'}
+                  </div>
                 )}
-              </button>
-              <button
-                onClick={() => toggleWishlist(product)}
-                className="w-12 h-12 rounded-2xl glass border border-white/10 flex items-center justify-center transition-all active:scale-90"
-              >
-                <Heart className={`w-5 h-5 transition-all ${isWishlisted(product.id) ? 'fill-[#e8a0a8] text-[#e8a0a8] scale-110' : 'text-white/40'}`} />
-              </button>
+              </div>
             </div>
 
             {/* Trust badges */}

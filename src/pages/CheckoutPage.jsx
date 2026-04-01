@@ -147,15 +147,15 @@ export default function CheckoutPage() {
     })
   }
 
-  const inputClass = "w-full bg-transparent text-white placeholder-white/25 outline-none text-[14px] py-3"
-  const wrapClass = "glass rounded-2xl border border-white/10 px-4 flex items-center gap-3 focus-within:border-[#b76e79]/40 transition-all duration-300"
+  const inputClass = "w-full bg-transparent text-[#2d1b1e] placeholder-[#2d1b1e]/40 outline-none text-[14px] py-3"
+  const wrapClass = "bg-white/60 rounded-2xl border border-[#b76e79]/20 px-4 flex items-center gap-3 focus-within:border-[#b76e79]/50 focus-within:bg-white/90 transition-all duration-300 shadow-sm"
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-4">
       <div className="max-w-5xl mx-auto">
 
         {/* Back */}
-        <Link to="/" className="inline-flex items-center gap-1.5 text-[13px] text-white/40 hover:text-white/70 transition-colors mb-8">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-[13px] text-[#2d1b1e]/50 hover:text-[#2d1b1e] transition-colors mb-8">
           <ArrowLeft className="w-3.5 h-3.5" />
           Continue Shopping
         </Link>
@@ -173,15 +173,15 @@ export default function CheckoutPage() {
                 <div key={key} className="flex items-center gap-2">
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold transition-all ${
                     step === key || (step === 'processing' && key === 'payment')
-                      ? 'bg-gradient-to-br from-purple-600 to-purple-800 text-white'
+                      ? 'bg-gradient-to-br from-[#b76e79] to-[#8b4f5a] text-white'
                       : step === 'payment' && key === 'shipping'
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'glass border border-white/10 text-white/30'
+                      ? 'bg-emerald-500/20 text-emerald-600 border border-emerald-500/30'
+                      : 'bg-white/60 border border-[#b76e79]/20 text-[#2d1b1e]/30'
                   }`}>
                     {step === 'payment' && key === 'shipping' ? '✓' : num}
                   </div>
-                  <span className={`text-[13px] font-medium ${step === key ? 'text-white/80' : 'text-white/30'}`}>{label}</span>
-                  {i === 0 && <div className="flex-1 h-[1px] w-12 bg-white/10 mx-2" />}
+                  <span className={`text-[13px] font-medium ${step === key ? 'text-[#2d1b1e]' : 'text-[#2d1b1e]/30'}`}>{label}</span>
+                  {i === 0 && <div className="flex-1 h-[1px] w-12 bg-[#b76e79]/20 mx-2" />}
                 </div>
               ))}
             </div>
@@ -190,17 +190,17 @@ export default function CheckoutPage() {
             {step === 'shipping' && (
               <form onSubmit={handleShippingNext} className="space-y-5 animate-fadeIn">
                 <div>
-                  <h2 className="font-serif text-xl font-semibold text-white/90 mb-1">Delivery Address</h2>
-                  <p className="text-[12px] text-white/30 mb-4">Where should we send your order?</p>
+                  <h2 className="font-serif text-xl font-semibold text-[#2d1b1e] mb-1">Delivery Address</h2>
+                  <p className="text-[12px] text-[#2d1b1e]/40 mb-4">Where should we send your order?</p>
 
                   {/* Saved address picker */}
                   {user?.id && (
                     <div className="mb-5">
-                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Saved Addresses</label>
+                      <label className="text-[10px] tracking-[0.2em] text-[#2d1b1e]/40 uppercase block mb-2">Saved Addresses</label>
                       {savedAddresses.length === 0 ? (
-                        <div className="glass rounded-2xl border border-white/8 px-4 py-3 flex items-center gap-2">
-                          <MapPin className="w-3.5 h-3.5 text-white/20 flex-shrink-0" />
-                          <p className="text-[11px] text-white/25">No saved addresses yet — your address will be saved after your first order.</p>
+                        <div className="bg-white/60 rounded-2xl border border-[#b76e79]/15 px-4 py-3 flex items-center gap-2">
+                          <MapPin className="w-3.5 h-3.5 text-[#2d1b1e]/25 flex-shrink-0" />
+                          <p className="text-[11px] text-[#2d1b1e]/35">No saved addresses yet — your address will be saved after your first order.</p>
                         </div>
                       ) : (
                         <div className="space-y-2">
@@ -208,21 +208,21 @@ export default function CheckoutPage() {
                             <div
                               key={a.id}
                               onClick={() => setShipping(s => ({ ...s, name: a.name || s.name, phone: a.phone || s.phone, email: a.email || s.email, line1: a.line1 || '', line2: a.line2 || '', city: a.city || '', state: a.state || '', pincode: a.pincode || '' }))}
-                              className={`cursor-pointer glass rounded-2xl border px-4 py-3 flex items-start gap-3 transition-all hover:border-[#b76e79]/40 ${
+                              className={`cursor-pointer bg-white/60 rounded-2xl border px-4 py-3 flex items-start gap-3 transition-all hover:border-[#b76e79]/40 ${
                                 shipping.line1 === a.line1 && shipping.pincode === a.pincode
                                   ? 'border-[#b76e79]/50 shadow-sm shadow-[#b76e79]/10'
-                                  : 'border-white/10'
+                                  : 'border-[#b76e79]/15'
                               }`}
                             >
                               <MapPin className="w-3.5 h-3.5 text-[#b76e79] mt-0.5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
-                                <p className="text-[12px] font-medium text-white/80 truncate">{a.name || shipping.name} · {a.phone || shipping.phone}</p>
-                                <p className="text-[11px] text-white/40 truncate mt-0.5">{a.line1}{a.line2 ? `, ${a.line2}` : ''}, {a.city}, {a.state} — {a.pincode}</p>
+                                <p className="text-[12px] font-medium text-[#2d1b1e]/80 truncate">{a.name || shipping.name} · {a.phone || shipping.phone}</p>
+                                <p className="text-[11px] text-[#2d1b1e]/45 truncate mt-0.5">{a.line1}{a.line2 ? `, ${a.line2}` : ''}, {a.city}, {a.state} — {a.pincode}</p>
                               </div>
                               {a.is_default && <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#b76e79]/15 text-[#b76e79] border border-[#b76e79]/20 flex-shrink-0">Default</span>}
                             </div>
                           ))}
-                          <p className="text-[10px] text-white/20 mt-1 ml-1">Click a saved address to fill the form, or type a new one below</p>
+                          <p className="text-[10px] text-[#2d1b1e]/30 mt-1 ml-1">Click a saved address to fill the form, or type a new one below</p>
                         </div>
                       )}
                     </div>
@@ -230,53 +230,53 @@ export default function CheckoutPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Full Name *</label>
+                      <label className="text-[10px] tracking-[0.2em] text-[#2d1b1e]/40 uppercase block mb-2">Full Name *</label>
                       <div className={wrapClass}>
-                        <User className="w-4 h-4 text-white/30 flex-shrink-0" />
+                        <User className="w-4 h-4 text-[#2d1b1e]/35 flex-shrink-0" />
                         <input type="text" placeholder="As on ID" value={shipping.name} onChange={setS('name')} className={inputClass} />
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Email *</label>
+                      <label className="text-[10px] tracking-[0.2em] text-[#2d1b1e]/40 uppercase block mb-2">Email *</label>
                       <div className={wrapClass}>
-                        <Mail className="w-4 h-4 text-white/30 flex-shrink-0" />
+                        <Mail className="w-4 h-4 text-[#2d1b1e]/35 flex-shrink-0" />
                         <input type="email" placeholder="For order updates" value={shipping.email} onChange={setS('email')} className={inputClass} />
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Phone *</label>
+                      <label className="text-[10px] tracking-[0.2em] text-[#2d1b1e]/40 uppercase block mb-2">Phone *</label>
                       <div className={wrapClass}>
-                        <Phone className="w-4 h-4 text-white/30 flex-shrink-0" />
+                        <Phone className="w-4 h-4 text-[#2d1b1e]/35 flex-shrink-0" />
                         <input type="tel" placeholder="10-digit mobile number" value={shipping.phone} onChange={setS('phone')} className={inputClass} maxLength={13} />
                       </div>
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Address Line 1 *</label>
+                      <label className="text-[10px] tracking-[0.2em] text-[#2d1b1e]/40 uppercase block mb-2">Address Line 1 *</label>
                       <div className={wrapClass}>
-                        <MapPin className="w-4 h-4 text-white/30 flex-shrink-0" />
+                        <MapPin className="w-4 h-4 text-[#2d1b1e]/35 flex-shrink-0" />
                         <input type="text" placeholder="Flat / House no., Street" value={shipping.line1} onChange={setS('line1')} className={inputClass} />
                       </div>
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Address Line 2</label>
+                      <label className="text-[10px] tracking-[0.2em] text-[#2d1b1e]/40 uppercase block mb-2">Address Line 2</label>
                       <div className={wrapClass}>
                         <input type="text" placeholder="Landmark, Area (optional)" value={shipping.line2} onChange={setS('line2')} className={inputClass} />
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">City *</label>
+                      <label className="text-[10px] tracking-[0.2em] text-[#2d1b1e]/40 uppercase block mb-2">City *</label>
                       <div className={wrapClass}>
                         <input type="text" placeholder="City" value={shipping.city} onChange={setS('city')} className={inputClass} />
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">State *</label>
+                      <label className="text-[10px] tracking-[0.2em] text-[#2d1b1e]/40 uppercase block mb-2">State *</label>
                       <div className={wrapClass}>
                         <input type="text" placeholder="State" value={shipping.state} onChange={setS('state')} className={inputClass} />
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">PIN Code *</label>
+                      <label className="text-[10px] tracking-[0.2em] text-[#2d1b1e]/40 uppercase block mb-2">PIN Code *</label>
                       <div className={wrapClass}>
                         <input type="text" placeholder="6-digit PIN" value={shipping.pincode} onChange={setS('pincode')} maxLength={6} className={inputClass + ' font-mono'} />
                       </div>
@@ -290,12 +290,12 @@ export default function CheckoutPage() {
                     <div
                       onClick={() => setSaveAddrChecked(v => !v)}
                       className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all ${
-                        saveAddrChecked ? 'bg-[#b76e79] border-[#b76e79]' : 'border-white/20 glass'
+                        saveAddrChecked ? 'bg-[#b76e79] border-[#b76e79]' : 'border-[#b76e79]/25 bg-white/60'
                       }`}
                     >
                       {saveAddrChecked && <CheckCircle className="w-3.5 h-3.5 text-white" />}
                     </div>
-                    <span className="text-[12px] text-white/50 group-hover:text-white/70 transition-colors">Save this address for future orders</span>
+                    <span className="text-[12px] text-[#2d1b1e]/50 group-hover:text-[#2d1b1e]/70 transition-colors">Save this address for future orders</span>
                   </label>
                 )}
 
@@ -311,19 +311,19 @@ export default function CheckoutPage() {
             {step === 'payment' && (
               <div className="space-y-5 animate-fadeIn">
                 <div>
-                  <h2 className="font-serif text-xl font-semibold text-white/90 mb-1">Secure Payment</h2>
-                  <p className="text-[13px] text-white/40 mb-6">Pay securely via UPI, Cards, Net Banking or Wallets.</p>
+                  <h2 className="font-serif text-xl font-semibold text-[#2d1b1e] mb-1">Secure Payment</h2>
+                  <p className="text-[13px] text-[#2d1b1e]/50 mb-6">Pay securely via UPI, Cards, Net Banking or Wallets.</p>
 
                   {/* Delivery info */}
                   {shipping.city && (
-                    <div className="glass rounded-2xl border border-white/10 p-4 mb-5">
+                    <div className="bg-white/60 rounded-2xl border border-[#b76e79]/15 p-4 mb-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600/20 to-purple-800/20 flex items-center justify-center">
-                          <Package className="w-5 h-5 text-purple-400" />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#b76e79]/20 to-[#8b4f5a]/20 flex items-center justify-center">
+                          <Package className="w-5 h-5 text-[#b76e79]" />
                         </div>
                         <div>
-                          <p className="text-[13px] font-medium text-white/80">Shipping to {shipping.city}, {shipping.state}</p>
-                          <p className="text-[11px] text-white/40">2–5 business days · Free shipping</p>
+                          <p className="text-[13px] font-medium text-[#2d1b1e]/80">Shipping to {shipping.city}, {shipping.state}</p>
+                          <p className="text-[11px] text-[#2d1b1e]/40">2–5 business days · Free shipping</p>
                         </div>
                       </div>
                     </div>
@@ -332,14 +332,14 @@ export default function CheckoutPage() {
                   {/* Payment method card */}
                   <div className="glass-premium rounded-2xl border border-[#b76e79]/30 p-5 shadow-lg shadow-[#b76e79]/5">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#b76e79] to-purple-700 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#b76e79] to-[#8b4f5a] flex items-center justify-center">
                         <CreditCard className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-white/90 text-[15px]">Pay Online</p>
+                        <p className="font-semibold text-[#2d1b1e] text-[15px]">Pay Online</p>
                         <div className="flex items-center gap-1.5 mt-1">
                           {['UPI', 'Cards', 'Net Banking', 'Wallets'].map(t => (
-                            <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/8 text-white/50 border border-white/10">{t}</span>
+                            <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-md bg-[#b76e79]/8 text-[#2d1b1e]/50 border border-[#b76e79]/15">{t}</span>
                           ))}
                         </div>
                       </div>
@@ -350,7 +350,7 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* Why no COD — warm, trustworthy explanation */}
-                  <div className="glass rounded-2xl border border-amber-500/15 bg-amber-500/5 p-5 mt-6">
+                  <div className="bg-white/60 rounded-2xl border border-amber-500/20 bg-amber-50 p-5 mt-6">
                     <div className="flex gap-3">
                       <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                         {/* Needle & thread icon */}
@@ -360,16 +360,16 @@ export default function CheckoutPage() {
                         </svg>
                       </div>
                       <div>
-                        <p className="text-[12px] font-semibold text-amber-300/90 mb-1.5 flex items-center gap-1.5">
+                        <p className="text-[12px] font-semibold text-amber-700 mb-1.5 flex items-center gap-1.5">
                           Why only online payment? We'll explain.
                         </p>
-                        <p className="text-[12px] text-white/50 leading-relaxed">
-                          Every Ellaura piece is <span className="text-white/75 font-medium">hand-stitched to order</span> — crafted personally by our artisans in Coimbatore, just for you. Unlike mass-produced garments, your outfit starts being made <span className="text-white/75 font-medium">the moment you place your order</span>.
+                        <p className="text-[12px] text-[#2d1b1e]/55 leading-relaxed">
+                          Every Ellaura piece is <span className="text-[#2d1b1e]/80 font-medium">hand-stitched to order</span> — crafted personally by our artisans in Coimbatore, just for you. Unlike mass-produced garments, your outfit starts being made <span className="text-[#2d1b1e]/80 font-medium">the moment you place your order</span>.
                         </p>
-                        <p className="text-[12px] text-white/50 leading-relaxed mt-2">
+                        <p className="text-[12px] text-[#2d1b1e]/55 leading-relaxed mt-2">
                           Cash on Delivery isn't possible because a last-minute cancellation at the doorstep would mean hours of artisan work and premium fabric go to waste — a loss we cannot absorb while keeping our prices fair and quality uncompromised.
                         </p>
-                        <p className="text-[12px] text-white/50 leading-relaxed mt-2">
+                        <p className="text-[12px] text-[#2d1b1e]/55 leading-relaxed mt-2">
                           We hope you understand — this is how we protect both the artisan's effort and your right to an affordable, beautifully made garment. 🤍
                         </p>
                         {/* Promise strip */}
@@ -379,8 +379,8 @@ export default function CheckoutPage() {
                             { icon: '✦', text: '100% secure payment' },
                             { icon: '✦', text: 'WhatsApp support anytime' },
                           ].map(({ icon, text }) => (
-                            <span key={text} className="inline-flex items-center gap-1 text-[10px] text-amber-300/60 bg-amber-500/8 border border-amber-500/15 rounded-full px-2.5 py-1">
-                              <span className="text-amber-400/70">{icon}</span> {text}
+                            <span key={text} className="inline-flex items-center gap-1 text-[10px] text-amber-700/70 bg-amber-100/60 border border-amber-500/20 rounded-full px-2.5 py-1">
+                              <span className="text-amber-600">{icon}</span> {text}
                             </span>
                           ))}
                         </div>
@@ -401,12 +401,12 @@ export default function CheckoutPage() {
                   {loading ? 'Opening Payment…' : `Pay ${formatPrice(finalTotal)} Securely`}
                 </button>
 
-                <p className="text-center text-[11px] text-white/20 flex items-center justify-center gap-1.5">
+                <p className="text-center text-[11px] text-[#2d1b1e]/25 flex items-center justify-center gap-1.5">
                   <Lock className="w-3 h-3" />
                   Secured by Razorpay · SSL Encrypted · 100% Safe
                 </p>
 
-                <button type="button" onClick={() => setStep('shipping')} className="w-full text-center text-[12px] text-white/25 hover:text-white/50 transition-colors">
+                <button type="button" onClick={() => setStep('shipping')} className="w-full text-center text-[12px] text-[#2d1b1e]/30 hover:text-[#2d1b1e]/60 transition-colors">
                   ← Edit shipping details
                 </button>
               </div>
@@ -419,8 +419,8 @@ export default function CheckoutPage() {
                   <Lock className="w-7 h-7 text-white" />
                 </div>
                 <div className="text-center">
-                  <p className="font-serif text-xl text-white/90 mb-2">Processing your payment...</p>
-                  <p className="text-[13px] text-white/40">Please don't close this window</p>
+                  <p className="font-serif text-xl text-[#2d1b1e] mb-2">Processing your payment...</p>
+                  <p className="text-[13px] text-[#2d1b1e]/40">Please don't close this window</p>
                 </div>
                 <div className="flex gap-2">
                   {[0, 1, 2].map(i => (
@@ -433,11 +433,11 @@ export default function CheckoutPage() {
 
           {/* ── Right: Order Summary ── */}
           <div className="lg:sticky lg:top-24 h-fit">
-            <div className="glass-dark rounded-[24px] border border-white/10 overflow-hidden shadow-2xl">
-              <div className="h-0.5 w-full bg-gradient-to-r from-purple-600 to-indigo-600" />
+            <div className="glass-dark rounded-[24px] border border-[#b76e79]/15 overflow-hidden shadow-2xl">
+              <div className="h-0.5 w-full bg-gradient-to-r from-[#b76e79] to-[#e8a0a8]" />
               <div className="p-5">
-                <h3 className="font-serif text-base font-semibold text-white/90 mb-4 flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 text-purple-400" /> Order Summary
+                <h3 className="font-serif text-base font-semibold text-[#2d1b1e] mb-4 flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 text-[#b76e79]" /> Order Summary
                 </h3>
 
                 <div className="space-y-3 mb-4">
@@ -445,18 +445,18 @@ export default function CheckoutPage() {
                     <div key={`${product.id}-${size}`} className="flex gap-3">
                       <img src={product.img} alt={product.imgAlt} className="w-14 h-18 rounded-xl object-cover object-top flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="font-serif text-[13px] font-semibold text-white/85 leading-tight truncate">{product.name}</p>
-                        <p className="text-[10px] text-white/35 mt-0.5">Size {size} · Qty {qty}</p>
-                        <p className="text-purple-300 text-[12px] font-semibold mt-1">{formatPrice(product.price * qty)}</p>
+                        <p className="font-serif text-[13px] font-semibold text-[#2d1b1e] leading-tight truncate">{product.name}</p>
+                        <p className="text-[10px] text-[#2d1b1e]/40 mt-0.5">Size {size} · Qty {qty}</p>
+                        <p className="text-[#b76e79] text-[12px] font-semibold mt-1">{formatPrice(product.price * qty)}</p>
                       </div>
                     </div>
                   ))}
                 </div>
 
                 {/* Coupon code */}
-                <div className="border-t border-white/8 pt-4 mb-4">
+                <div className="border-t border-[#b76e79]/12 pt-4 mb-4">
                   {appliedCoupon ? (
-                    <div className="flex items-center justify-between glass rounded-xl border border-emerald-500/20 px-3 py-2.5">
+                    <div className="flex items-center justify-between bg-white/60 rounded-xl border border-emerald-500/20 px-3 py-2.5">
                       <div className="flex items-center gap-2">
                         <Tag className="w-3.5 h-3.5 text-emerald-400" />
                         <div>
@@ -471,15 +471,15 @@ export default function CheckoutPage() {
                   ) : (
                     <div>
                       <div className="flex gap-2">
-                        <div className="flex-1 glass rounded-xl border border-white/10 px-3 flex items-center gap-2 focus-within:border-purple-500/30 transition-all">
-                          <Tag className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
+                        <div className="flex-1 bg-white/60 rounded-xl border border-[#b76e79]/15 px-3 flex items-center gap-2 focus-within:border-[#b76e79]/40 transition-all">
+                          <Tag className="w-3.5 h-3.5 text-[#2d1b1e]/30 flex-shrink-0" />
                           <input
                             type="text"
                             placeholder="Coupon code"
                             value={couponInput}
                             onChange={e => setCouponInput(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
-                            className="flex-1 bg-transparent text-[13px] text-white placeholder-white/25 outline-none py-2.5"
+                            className="flex-1 bg-transparent text-[13px] text-[#2d1b1e] placeholder-[#2d1b1e]/35 outline-none py-2.5"
                           />
                         </div>
                         <button
@@ -496,14 +496,14 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex justify-between text-[13px] text-white/50">
+                  <div className="flex justify-between text-[13px] text-[#2d1b1e]/55">
                     <span>Subtotal</span><span>{formatPrice(cartTotal)}</span>
                   </div>
-                  <div className="flex justify-between text-[13px] text-white/50">
-                    <span>Custom Stitching</span><span className="text-emerald-400">Free</span>
+                  <div className="flex justify-between text-[13px] text-[#2d1b1e]/55">
+                    <span>Custom Stitching</span><span className="text-emerald-600">Free</span>
                   </div>
-                  <div className="flex justify-between text-[13px] text-white/50">
-                    <span>Shipping</span><span className="text-emerald-400">Free</span>
+                  <div className="flex justify-between text-[13px] text-[#2d1b1e]/55">
+                    <span>Shipping</span><span className="text-emerald-600">Free</span>
                   </div>
 
                   {appliedCoupon && discountAmount > 0 && (
@@ -512,22 +512,22 @@ export default function CheckoutPage() {
                       <span>− {formatPrice(discountAmount)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-base font-bold pt-2 border-t border-white/8">
-                    <span className="text-white">Total</span>
-                    <span className="text-purple-300">{formatPrice(finalTotal)}</span>
+                  <div className="flex justify-between text-base font-bold pt-2 border-t border-[#b76e79]/12">
+                    <span className="text-[#2d1b1e]">Total</span>
+                    <span className="text-[#b76e79]">{formatPrice(finalTotal)}</span>
                   </div>
                 </div>
 
                 {/* Trust badges */}
                 <div className="mt-5 grid grid-cols-3 gap-2 text-center">
                   {['Secure Payment', 'Custom Fit', 'Free Shipping'].map(t => (
-                    <div key={t} className="glass rounded-xl py-2 px-1 border border-white/8">
-                      <p className="text-[9px] text-white/35 leading-tight">{t}</p>
+                    <div key={t} className="bg-white/60 rounded-xl py-2 px-1 border border-[#b76e79]/12">
+                      <p className="text-[9px] text-[#2d1b1e]/40 leading-tight">{t}</p>
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-white/20">
+                <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-[#2d1b1e]/25">
                   <Lock className="w-3 h-3" />
                   <span>Razorpay · SSL Secured</span>
                 </div>
