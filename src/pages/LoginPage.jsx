@@ -34,7 +34,8 @@ export default function LoginPage() {
   })
 
   const { user } = useAuth()
-  const { showToast } = useUI()
+  const { showToast, theme } = useUI()
+  const isDark = theme === 'dark'
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
@@ -155,8 +156,17 @@ export default function LoginPage() {
     }
   }
 
-  const inputClass = "w-full bg-transparent text-white placeholder-white/25 outline-none text-[14px] py-3"
-  const wrapClass = "glass rounded-2xl border border-white/10 px-4 flex items-center gap-3 focus-within:border-[#b76e79]/40 transition-all duration-300"
+  const inputClass = isDark
+    ? "w-full bg-transparent text-white/90 placeholder-white/30 outline-none text-[14px] py-3"
+    : "w-full bg-transparent text-[#2d1b1e] placeholder-[#2d1b1e]/40 outline-none text-[14px] py-3"
+  const wrapClass = isDark
+    ? "bg-white/6 rounded-2xl border border-white/10 px-4 flex items-center gap-3 focus-within:border-[#b76e79]/50 focus-within:bg-white/10 transition-all duration-300"
+    : "bg-white/60 rounded-2xl border border-[#b76e79]/20 px-4 flex items-center gap-3 focus-within:border-[#b76e79]/50 focus-within:bg-white/90 transition-all duration-300 shadow-sm"
+  const labelClass = isDark
+    ? "text-[10px] tracking-[0.2em] text-white/40 uppercase block mb-2"
+    : "text-[10px] tracking-[0.2em] text-[#2d1b1e]/50 uppercase block mb-2"
+  const iconColor = isDark ? "w-4 h-4 text-white/30 flex-shrink-0" : "w-4 h-4 text-[#2d1b1e]/40 flex-shrink-0"
+  const subtextColor = isDark ? 'text-white/30' : 'text-[#2d1b1e]/50'
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-24">
@@ -168,13 +178,13 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md">
         {/* Back link */}
-        <Link to="/" className="inline-flex items-center gap-1.5 text-[13px] text-white/40 hover:text-white/70 transition-colors mb-8">
+        <Link to="/" className={`inline-flex items-center gap-1.5 text-[13px] transition-colors mb-8 ${isDark ? 'text-white/40 hover:text-white/70' : 'text-[#2d1b1e]/60 hover:text-[#2d1b1e]'}`}>
           <ArrowLeft className="w-3.5 h-3.5" />
           Back to Ellaura
         </Link>
 
         {/* Card */}
-        <div className="glass-dark rounded-[28px] border border-white/10 shadow-2xl overflow-hidden">
+        <div className={`glass-dark rounded-[28px] shadow-2xl overflow-hidden ${isDark ? 'border border-white/8' : 'border border-[#b76e79]/15'}`}>
           {/* Glow strip */}
           <div className="h-1 w-full bg-gradient-to-r from-[#b76e79] via-[#e8a0a8] to-[#6366f1]" />
 
@@ -182,7 +192,7 @@ export default function LoginPage() {
             {/* Brand */}
             <div className="text-center mb-8">
               <p className="font-serif text-2xl font-bold text-rose-gold tracking-widest">ELLAURA</p>
-              <p className="text-[9px] tracking-[0.4em] text-white/20 uppercase mt-1">Couture</p>
+              <p className={`text-[9px] tracking-[0.4em] uppercase mt-1 ${isDark ? 'text-white/25' : 'text-[#2d1b1e]/40'}`}>Couture</p>
             </div>
 
             {/* Mode toggle */}
@@ -193,8 +203,8 @@ export default function LoginPage() {
                   onClick={() => { setMode(m); setStep(1); setError('') }}
                   className={`flex-1 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-400 ${
                     mode === m
-                      ? 'bg-gradient-to-r from-[#b76e79]/80 to-[#8b4f5a]/80 text-white shadow-lg'
-                      : 'text-white/40 hover:text-white/70'
+                      ? 'bg-gradient-to-r from-[#b76e79]/90 to-[#8b4f5a]/90 text-white shadow-md'
+                      : isDark ? 'text-white/40 hover:text-white/70' : 'text-[#2d1b1e]/60 hover:text-[#2d1b1e]'
                   }`}
                 >
                   {label}
@@ -204,12 +214,12 @@ export default function LoginPage() {
 
             {/* Demo mode notice */}
             {DEMO_MODE && (
-              <div className="flex items-start gap-2.5 glass border border-amber-400/20 rounded-xl px-4 py-3 mb-6 text-[12px] text-amber-400/80 leading-relaxed">
-                <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400/60" />
+              <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 text-[12px] text-amber-700 leading-relaxed">
+                <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
                 <span>
-                  <strong className="text-amber-400/90">Demo mode</strong> — Supabase isn't configured yet.
+                  <strong className="text-amber-800">Demo mode</strong> — Supabase isn't configured yet.
                   Your login will be saved locally so you can explore the full app.
-                  Add real credentials in <code className="font-mono text-amber-300/60">.env</code> later.
+                  Add real credentials in <code className="font-mono text-amber-600">.env</code> later.
                 </span>
               </div>
             )}
@@ -218,9 +228,9 @@ export default function LoginPage() {
             {mode === 'login' && (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Email</label>
+                  <label className={labelClass}>Email</label>
                   <div className={wrapClass}>
-                    <Mail className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    <Mail className={iconColor} />
                     <input
                       type="email"
                       placeholder="your@email.com"
@@ -233,9 +243,9 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Password</label>
+                  <label className={labelClass}>Password</label>
                   <div className={wrapClass}>
-                    <Lock className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    <Lock className={iconColor} />
                     <input
                       type={showPass ? 'text' : 'password'}
                       placeholder="Enter password"
@@ -244,14 +254,14 @@ export default function LoginPage() {
                       required
                       className={inputClass}
                     />
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0">
+                    <button type="button" onClick={() => setShowPass(!showPass)} className={`${isDark ? 'text-white/30 hover:text-white/60' : 'text-[#2d1b1e]/40 hover:text-[#2d1b1e]/70'} transition-colors flex-shrink-0`}>
                       {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
 
                 {error && (
-                  <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5 leading-snug">
+                  <p className="text-[12px] text-red-600 bg-red-50 border border-red-200/50 rounded-xl px-4 py-2.5 leading-snug">
                     {error}
                   </p>
                 )}
@@ -264,9 +274,9 @@ export default function LoginPage() {
                   {loading ? 'Signing In...' : 'Sign In →'}
                 </button>
 
-                <p className="text-center text-[12px] text-white/25">
+                <p className={`text-center text-[12px] pt-2 ${isDark ? 'text-white/30' : 'text-[#2d1b1e]/50'}`}>
                   Forgot password?{' '}
-                  <button type="button" className="text-[#e8a0a8] hover:text-[#b76e79] transition-colors">Reset here</button>
+                  <button type="button" className="text-[#b76e79] hover:text-[#8b4f5a] font-medium transition-colors">Reset here</button>
                 </p>
               </form>
             )}
@@ -276,41 +286,41 @@ export default function LoginPage() {
               <form onSubmit={handleSignupStep1} className="space-y-4">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#b76e79] to-[#8b4f5a] flex items-center justify-center text-[11px] font-bold text-white">1</div>
-                  <p className="text-[12px] text-white/50">Basic Info</p>
-                  <div className="flex-1 h-[1px] bg-white/8" />
-                  <div className="w-6 h-6 rounded-full glass border border-white/10 flex items-center justify-center text-[11px] text-white/25">2</div>
-                  <p className="text-[12px] text-white/20">Style Profile</p>
+                  <p className={`text-[12px] font-medium ${isDark ? 'text-white/60' : 'text-[#2d1b1e]/70'}`}>Basic Info</p>
+                  <div className="flex-1 h-[1px] bg-[#b76e79]/20" />
+                  <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-[11px] ${isDark ? 'bg-white/6 border-white/10 text-white/30' : 'bg-white/60 border-[#b76e79]/20 text-[#2d1b1e]/40'}`}>2</div>
+                  <p className={`text-[12px] ${isDark ? 'text-white/30' : 'text-[#2d1b1e]/40'}`}>Style Profile</p>
                 </div>
 
                 <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Full Name</label>
+                  <label className={labelClass}>Full Name</label>
                   <div className={wrapClass}>
-                    <User className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    <User className={iconColor} />
                     <input type="text" placeholder="Your name" value={form.fullName} onChange={set('fullName')} required className={inputClass} />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Mobile Number *</label>
+                  <label className={labelClass}>Mobile Number *</label>
                   <div className={wrapClass}>
-                    <Phone className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    <Phone className={iconColor} />
                     <input type="tel" placeholder="+91 XXXXXXXXXX" value={form.phone} onChange={set('phone')} required className={inputClass} />
                   </div>
-                  <p className="text-[10px] text-white/20 mt-1 ml-1">For order updates &amp; delivery coordination</p>
+                  <p className={`text-[10px] mt-1 ml-1 ${subtextColor}`}>For order updates & delivery coordination</p>
                 </div>
 
                 <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Email *</label>
+                  <label className={labelClass}>Email *</label>
                   <div className={wrapClass}>
-                    <Mail className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    <Mail className={iconColor} />
                     <input type="email" placeholder="your@email.com" value={form.email} onChange={set('email')} required className={inputClass} />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">Password *</label>
+                  <label className={labelClass}>Password *</label>
                   <div className={wrapClass}>
-                    <Lock className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    <Lock className={iconColor} />
                     <input
                       type={showPass ? 'text' : 'password'}
                       placeholder="Min. 8 characters"
@@ -320,17 +330,17 @@ export default function LoginPage() {
                       minLength={8}
                       className={inputClass}
                     />
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0">
+                    <button type="button" onClick={() => setShowPass(!showPass)} className={`${isDark ? 'text-white/30 hover:text-white/60' : 'text-[#2d1b1e]/40 hover:text-[#2d1b1e]/70'} transition-colors flex-shrink-0`}>
                       {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
 
                 {error && (
-                  <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5">{error}</p>
+                  <p className="text-[12px] text-red-600 bg-red-50 border border-red-200/50 rounded-xl px-4 py-2.5 leading-snug">{error}</p>
                 )}
 
-                <button type="submit" className="w-full btn-liquid rounded-2xl py-4 text-[15px] font-semibold text-white tracking-wide transition-all active:scale-[0.98]">
+                <button type="submit" className="w-full btn-liquid rounded-2xl py-4 text-[15px] font-semibold text-white tracking-wide transition-all active:scale-[0.98] mt-2">
                   Continue →
                 </button>
               </form>
@@ -340,23 +350,23 @@ export default function LoginPage() {
             {mode === 'signup' && step === 2 && (
               <form onSubmit={handleSignupStep2} className="space-y-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-6 h-6 rounded-full glass border border-[#b76e79]/30 flex items-center justify-center text-[11px] text-[#b76e79]">✓</div>
-                  <p className="text-[12px] text-white/30">Basic Info</p>
+                  <div className="w-6 h-6 rounded-full bg-white/60 border border-[#b76e79]/30 flex items-center justify-center text-[11px] text-[#b76e79] font-bold">✓</div>
+                  <p className={`text-[12px] ${isDark ? 'text-white/40' : 'text-[#2d1b1e]/50'}`}>Basic Info</p>
                   <div className="flex-1 h-[1px] bg-[#b76e79]/30" />
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#b76e79] to-[#8b4f5a] flex items-center justify-center text-[11px] font-bold text-white">2</div>
-                  <p className="text-[12px] text-white/50">Style Profile</p>
+                  <p className={`text-[12px] font-medium ${isDark ? 'text-white/60' : 'text-[#2d1b1e]/70'}`}>Style Profile</p>
                 </div>
 
                 <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-2">City</label>
+                  <label className={labelClass}>City</label>
                   <div className={wrapClass}>
-                    <MapPin className="w-4 h-4 text-white/30 flex-shrink-0" />
+                    <MapPin className={iconColor} />
                     <input type="text" placeholder="Your city" value={form.city} onChange={set('city')} className={inputClass} />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] tracking-[0.2em] text-white/30 uppercase block mb-3">Your Style Vibe</label>
+                  <label className={`${labelClass} mb-3`}>Your Style Vibe</label>
                   <div className="space-y-2">
                     {STYLE_OPTIONS.map(opt => (
                       <button
@@ -365,14 +375,14 @@ export default function LoginPage() {
                         onClick={() => setForm(f => ({ ...f, stylePreference: opt.key }))}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border text-left transition-all duration-300 ${
                           form.stylePreference === opt.key
-                            ? 'glass-rose border-[#b76e79]/40 '
-                            : 'glass border-white/8 hover:border-white/15'
+                            ? isDark ? 'bg-[#b76e79]/15 border-[#b76e79]/40' : 'bg-[#b76e79]/10 border-[#b76e79]/40 shadow-sm'
+                            : isDark ? 'bg-white/5 border-white/8 hover:border-white/15' : 'bg-white/60 border-[#b76e79]/15 hover:border-[#b76e79]/30 shadow-sm'
                         }`}
                       >
                         <span className="text-base">{opt.label.split(' ')[0]}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-medium text-white/80">{opt.label.substring(3)}</p>
-                          <p className="text-[10px] text-white/35">{opt.desc}</p>
+                          <p className={`text-[13px] font-medium ${isDark ? 'text-white/70' : 'text-[#2d1b1e]/80'}`}>{opt.label.substring(3)}</p>
+                          <p className={`text-[10px] ${subtextColor}`}>{opt.desc}</p>
                         </div>
                         {form.stylePreference === opt.key && (
                           <div className="w-4 h-4 rounded-full bg-gradient-to-br from-[#b76e79] to-[#8b4f5a] flex items-center justify-center flex-shrink-0">
@@ -385,14 +395,14 @@ export default function LoginPage() {
                 </div>
 
                 {error && (
-                  <p className="text-[12px] text-red-400 bg-red-400/10 border border-red-400/20 rounded-xl px-4 py-2.5">{error}</p>
+                  <p className="text-[12px] text-red-600 bg-red-50 border border-red-200/50 rounded-xl px-4 py-2.5 leading-snug">{error}</p>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 pt-2">
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="flex-1 glass border border-white/10 rounded-2xl py-3.5 text-sm font-medium text-white/60 hover:text-white hover:bg-white/8 transition-all active:scale-[0.98]"
+                    className={`flex-1 rounded-2xl py-3.5 text-sm font-medium transition-all active:scale-[0.98] ${isDark ? 'bg-white/6 border border-white/10 text-white/50 hover:text-white/80 hover:bg-white/10' : 'bg-white/60 border border-[#b76e79]/20 text-[#2d1b1e]/70 hover:text-[#2d1b1e] hover:bg-white/90 hover:border-[#b76e79]/40 shadow-sm'}`}
                   >
                     ← Back
                   </button>
@@ -408,11 +418,11 @@ export default function LoginPage() {
             )}
 
             {/* Footer note */}
-            <p className="text-center text-[10px] text-white/20 mt-6 leading-relaxed">
+            <p className={`text-center text-[10px] mt-6 leading-relaxed ${isDark ? 'text-white/25' : 'text-[#2d1b1e]/40'}`}>
               By continuing, you agree to our{' '}
-              <span className="text-white/35 hover:text-white/60 cursor-pointer transition-colors">Terms</span>
+              <span className={`cursor-pointer transition-colors font-medium ${isDark ? 'text-white/50 hover:text-white/70' : 'text-[#2d1b1e]/70 hover:text-[#2d1b1e]'}`}>Terms</span>
               {' '}&{' '}
-              <span className="text-white/35 hover:text-white/60 cursor-pointer transition-colors">Privacy Policy</span>
+              <span className={`cursor-pointer transition-colors font-medium ${isDark ? 'text-white/50 hover:text-white/70' : 'text-[#2d1b1e]/70 hover:text-[#2d1b1e]'}`}>Privacy Policy</span>
             </p>
           </div>
         </div>
@@ -420,3 +430,4 @@ export default function LoginPage() {
     </div>
   )
 }
+
